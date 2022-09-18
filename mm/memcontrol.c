@@ -993,6 +993,7 @@ void mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
 	lru_size = &mz->lru_zone_size[zid][lru];
 
 	if (nr_pages < 0) {
+#ifndef CONFIG_LRU_GEN
 		if (*lru_size < -nr_pages) {
 			pr_warn_once("%s(%p, %d, %d): lru_size %lu\n",
 				__func__, lruvec, lru, nr_pages, *lru_size);
@@ -1000,6 +1001,9 @@ void mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
 		} else {
 			*lru_size += nr_pages;
 		}
+#else
+		*lru_size += nr_pages;
+#endif
 	} else if (nr_pages > 0) {
 		*lru_size += nr_pages;
 	}
@@ -4317,6 +4321,7 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
 
 static void mem_cgroup_free(struct mem_cgroup *memcg)
 {
+	lru_gen_exit_memcg(memcg);
 	memcg_wb_domain_exit(memcg);
 	__mem_cgroup_free(memcg);
 }
@@ -4367,6 +4372,7 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
 	INIT_LIST_HEAD(&memcg->cgwb_list);
 #endif
 	idr_replace(&mem_cgroup_idr, memcg, memcg->id.id);
+	lru_gen_init_memcg(memcg);
 	return memcg;
 fail:
 	mem_cgroup_id_remove(memcg);

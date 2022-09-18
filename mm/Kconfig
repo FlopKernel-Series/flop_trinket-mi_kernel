@@ -836,3 +836,11 @@ config KSWAPD_CPU
 	help
 	  Set kswapd cpu affinity by default. 0x3F means allowing CPU as 0 to 5.
 	  To disable this config, set this to 0.
+
+config LRU_GEN
+	bool "Multi-Gen LRU"
+	depends on MMU
+	# make sure page->flags has enough spare bits
+	depends on 64BIT || !SPARSEMEM || SPARSEMEM_VMEMMAP
+	help
+	  A high performance LRU implementation to overcommit memory.
