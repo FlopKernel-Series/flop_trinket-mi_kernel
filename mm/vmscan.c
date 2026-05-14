@@ -3589,19 +3589,25 @@ static void walk_mm(struct lruvec *lruvec, struct mm_struct *mm, struct lru_gen_
 
 static struct lru_gen_mm_walk *set_mm_walk(struct pglist_data *pgdat)
 {
-	struct lru_gen_mm_walk *walk = current->reclaim_state->mm_walk;
+	struct reclaim_state *reclaim_state = current->reclaim_state;
+	struct lru_gen_mm_walk *walk;
 
-	if (pgdat && current_is_kswapd()) {
-		VM_WARN_ON_ONCE(walk);
+	/*
+	 * pgdat used to provide kswapd's walk storage. That becomes unsafe with
+	 * multiple kswapd threads per node because the page-table walker carries
+	 * mutable state such as walk->lruvec and batch counters.
+	 */
+	(void)pgdat;
 
-		walk = &pgdat->mm_walk;
-	} else if (!pgdat && !walk) {
-		VM_WARN_ON_ONCE(current_is_kswapd());
+	if (WARN_ON_ONCE(!reclaim_state))
+		return NULL;
 
-		walk = kzalloc(sizeof(*walk), __GFP_HIGH | __GFP_NOMEMALLOC | __GFP_NOWARN);
+	walk = reclaim_state->mm_walk;
+	if (!walk) {
+		walk = &reclaim_state->mm_walk_data;
+		memset(walk, 0, sizeof(*walk));
+		reclaim_state->mm_walk = walk;
 	}
-
-	current->reclaim_state->mm_walk = walk;
 
 	return walk;
 }
@@ -3614,9 +3620,6 @@ static void clear_mm_walk(void)
 	VM_WARN_ON_ONCE(walk && memchr_inv(walk->mm_stats, 0, sizeof(walk->mm_stats)));
 
 	current->reclaim_state->mm_walk = NULL;
-
-	if (!current_is_kswapd())
-		kfree(walk);
 }
 
 static void inc_min_seq(struct lruvec *lruvec, int type)

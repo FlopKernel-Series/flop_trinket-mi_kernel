@@ -951,11 +951,6 @@ typedef struct pglist_data {
 
 	unsigned long		flags;
 
-#ifdef CONFIG_LRU_GEN
-	/* kswap mm walk data */
-	struct lru_gen_mm_walk	mm_walk;
-#endif
-
 	ZONE_PADDING(_pad2_)
 
 	/* Per-node vmstats */
