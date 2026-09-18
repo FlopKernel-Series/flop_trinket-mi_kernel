@@ -168,7 +168,7 @@ ifdef CONFIG_SND_SOC_MAX98937
 	MAX98937_OBJS += max98937.o
 endif
 
-LINUX_INC +=	-Iinclude/linux
+LINUX_INC +=	-I$(srctree)/include/linux
 
 INCS +=		$(COMMON_INC) \
 		$(UAPI_INC)

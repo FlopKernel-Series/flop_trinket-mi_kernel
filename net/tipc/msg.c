@@ -175,8 +175,20 @@ int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf)
 
 	if (fragid == LAST_FRAGMENT) {
 		TIPC_SKB_CB(head)->validated = false;
-		if (unlikely(!tipc_msg_validate(head)))
+
+		/* If the reassembled skb has been freed in
+		 * tipc_msg_validate() because of an invalid truesize,
+		 * then head will point to a newly allocated reassembled
+		 * skb, while *headbuf points to freed reassembled skb.
+		 * In such cases, correct *headbuf for freeing the newly
+		 * allocated reassembled skb later.
+		 */
+		if (unlikely(!tipc_msg_validate(&head))) {
+			if (head != *headbuf)
+				*headbuf = head;
 			goto err;
+		}
+
 		*buf = head;
 		TIPC_SKB_CB(head)->tail = NULL;
 		*headbuf = NULL;
@@ -201,10 +213,20 @@ err:
  * TIPC will ignore the excess, under the assumption that it is optional info
  * introduced by a later release of the protocol.
  */
-bool tipc_msg_validate(struct sk_buff *skb)
+bool tipc_msg_validate(struct sk_buff **_skb)
 {
-	struct tipc_msg *msg;
+	struct sk_buff *skb = *_skb;
+	struct tipc_msg *hdr;
 	int msz, hsz;
+
+	/* Ensure that flow control ratio condition is satisfied */
+	if (unlikely(skb->truesize / buf_roundup_len(skb) > 4)) {
+		skb = skb_copy(skb, GFP_ATOMIC);
+		if (!skb)
+			return false;
+		kfree_skb(*_skb);
+		*_skb = skb;
+	}
 
 	if (unlikely(TIPC_SKB_CB(skb)->validated))
 		return true;
@@ -217,11 +239,11 @@ bool tipc_msg_validate(struct sk_buff *skb)
 	if (unlikely(!pskb_may_pull(skb, hsz)))
 		return false;
 
-	msg = buf_msg(skb);
-	if (unlikely(msg_version(msg) != TIPC_VERSION))
+	hdr = buf_msg(skb);
+	if (unlikely(msg_version(hdr) != TIPC_VERSION))
 		return false;
 
-	msz = msg_size(msg);
+	msz = msg_size(hdr);
 	if (unlikely(msz < hsz))
 		return false;
 	if (unlikely((msz - hsz) > TIPC_MAX_USER_MSG_SIZE))
@@ -411,7 +433,7 @@ bool tipc_msg_extract(struct sk_buff *skb, struct sk_buff **iskb, int *pos)
 	skb_pull(*iskb, offset);
 	imsz = msg_size(buf_msg(*iskb));
 	skb_trim(*iskb, imsz);
-	if (unlikely(!tipc_msg_validate(*iskb)))
+	if (unlikely(!tipc_msg_validate(iskb)))
 		goto none;
 	*pos += align(imsz);
 	return true;

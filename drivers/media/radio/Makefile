@@ -38,4 +38,4 @@ obj-$(CONFIG_FM_INSIDE_LAN) += fm_inside_lan.o
 
 shark2-objs := radio-shark2.o radio-tea5777.o
 
-ccflags-y += -Isound
+ccflags-y += -I $(srctree)/sound
