@@ -71,8 +71,6 @@ import com.resukisu.resukisu.domain.usecase.GetBooleanPreferenceUseCase
 import com.resukisu.resukisu.domain.usecase.GetCatalogModuleUseCase
 import com.resukisu.resukisu.domain.usecase.GetDefaultUmountModulesUseCase
 import com.resukisu.resukisu.domain.usecase.GetHomeBasicInfoUseCase
-import com.resukisu.resukisu.domain.usecase.GetHomeModuleOverviewUseCase
-import com.resukisu.resukisu.domain.usecase.GetHomeSuperuserCountUseCase
 import com.resukisu.resukisu.domain.usecase.GetInstallEnvironmentUseCase
 import com.resukisu.resukisu.domain.usecase.GetKernelFeatureSettingsUseCase
 import com.resukisu.resukisu.domain.usecase.GetKernelStatusUseCase
@@ -131,7 +129,6 @@ import com.resukisu.resukisu.domain.usecase.SetSelinuxHideEnabledUseCase
 import com.resukisu.resukisu.domain.usecase.SetStringPreferenceUseCase
 import com.resukisu.resukisu.domain.usecase.SetStringSetPreferenceUseCase
 import com.resukisu.resukisu.domain.usecase.SetSuEnabledUseCase
-import com.resukisu.resukisu.domain.usecase.SetWebViewZygoteUmountEnabledUseCase
 import com.resukisu.resukisu.domain.usecase.StartKernelFlashUseCase
 import com.resukisu.resukisu.domain.usecase.SuSFSConfigUseCase
 import com.resukisu.resukisu.domain.usecase.TakeModuleUriPermissionUseCase
@@ -296,8 +293,6 @@ val repositoryModule = module {
 val useCaseModule = module {
     factoryOf(::InitializeApplicationUseCase)
     factoryOf(::GetHomeBasicInfoUseCase)
-    factoryOf(::GetHomeModuleOverviewUseCase)
-    factoryOf(::GetHomeSuperuserCountUseCase)
     factoryOf(::IsNetworkAvailableUseCase)
     factoryOf(::LoadSettingsPlatformUseCase)
     factoryOf(::UpdateAppearanceUseCase)
@@ -320,7 +315,6 @@ val useCaseModule = module {
     factoryOf(::ConfigureSuLogUseCase)
     factoryOf(::SetSelinuxHideEnabledUseCase)
     factoryOf(::SetDefaultUmountModulesUseCase)
-    factoryOf(::SetWebViewZygoteUmountEnabledUseCase)
     factoryOf(::IsLateLoadModeUseCase)
     factoryOf(::GetAppProfileUseCase)
     factoryOf(::SetAppProfileUseCase)

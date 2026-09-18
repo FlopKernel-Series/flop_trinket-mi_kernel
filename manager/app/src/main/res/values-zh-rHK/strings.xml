@@ -266,12 +266,6 @@
     <string name="kernel_flashing">核心刷寫</string>
     <string name="warning_of_meta_module_title">需要元模組</string>
     <string name="warning_of_meta_module_summary">此模組想掛載 /system，此操作由 meta 模組處理。若缺少它，模組可能無法正常運作</string>
-    <string name="sort_name_asc">名稱升序</string>
-    <string name="sort_name_desc">名稱降序</string>
-    <string name="sort_install_time_new">安裝時間（新）</string>
-    <string name="sort_install_time_old">安裝時間（舊）</string>
-    <string name="sort_size_desc">大小降序</string>
-    <string name="sort_size_asc">大小升序</string>
     <string name="sort_usage_freq">使用頻率</string>
     <string name="no_apps_in_category">此分類中冇應用程式</string>
     <string name="persistent">持久</string>
@@ -398,6 +392,8 @@
     <string name="background_crop_rotation_angle">旋轉角度</string>
     <string name="settings_config_enable_blur">啟用模糊</string>
     <string name="settings_config_enable_blur_summary">為此應用程式啟用模糊處理</string>
+    <string name="enable_floating_bottom_bar">懸浮底部欄</string>
+    <string name="enable_floating_bottom_bar_summary">使用 Apple 風格懸浮底部欄</string>
     <string name="settings_exp_draw_background_to_blur">繪製自訂背景以實現模糊效果</string>
     <string name="settings_exp_draw_background_to_blur_description">實驗性功能，使用風險自負</string>
     <string name="settings_config_use_custom_background_seed_color">從自訂背景選取顏色</string>
@@ -417,8 +413,6 @@
     <string name="predictive_back_exit_direction_follow_gesture">跟隨手勢</string>
     <string name="predictive_back_exit_direction_always_right">固定靠右</string>
     <string name="predictive_back_exit_direction_always_left">固定靠左</string>
-    <string name="require_manager_version">當前 KernelSU 管理器版本 %1$d 過低，無法正常運作，請升級至 %2$d 或更高版本！</string>
-    <string name="require_kernel_version">當前 KernelSU 版本 %1$d 過低，管理器無法正常運作，請升級至 %2$d 或更高版本！</string>
     <string name="download_channel_name">模組下載</string>
     <string name="download_progress_title">正在下載 %s</string>
     <string name="download_complete_title">下載完成</string>

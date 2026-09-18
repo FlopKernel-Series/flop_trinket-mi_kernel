@@ -6,7 +6,7 @@ For languages other than English and Chinese Simplified, please don't create pul
 
 ## Reporting bugs
 
-Before reporting a bug, please first read the [document](https://resukisu.github.io)
+Before reporting a bug, please first read the [document](https://resukisu.org)
 
 If the issue still exists, please ensure you have tried the **latest CI build**, as the bug may have already been resolved. 
 

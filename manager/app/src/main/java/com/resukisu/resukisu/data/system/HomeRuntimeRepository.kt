@@ -5,17 +5,17 @@ import android.app.Application
 import android.os.Build
 import android.system.Os
 import com.resukisu.resukisu.BuildConfig
-import com.resukisu.resukisu.data.shell.KsuCliRepository
 import com.resukisu.resukisu.domain.model.HomeBasicInfo
-import com.resukisu.resukisu.domain.model.HomeModuleOverview
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class HomeRuntimeRepository(
     private val application: Application,
-    private val ksuCliRepository: KsuCliRepository,
 ) {
-    suspend fun getBasicInfo(managerUapiVersion: Int): HomeBasicInfo =
+    suspend fun getBasicInfo(
+        managerUapiVersion: Int,
+        includeSelinuxStatus: Boolean = true,
+    ): HomeBasicInfo =
         withContext(Dispatchers.IO) {
             val uname = runCatching { Os.uname() }.getOrNull()
             HomeBasicInfo(
@@ -27,26 +27,14 @@ class HomeRuntimeRepository(
                     BuildConfig.VERSION_CODE,
                     managerUapiVersion,
                 ),
-                selinuxStatus = runCatching { getSELinuxStatus(application) }.getOrDefault("Unknown"),
+                selinuxStatus = if (includeSelinuxStatus) {
+                    runCatching { getSELinuxStatus(application) }.getOrDefault("Unknown")
+                } else {
+                    ""
+                },
                 seccompStatus = runCatching { Os.prctl(21, 0, 0, 0, 0) }.getOrDefault(-1),
             )
         }
-
-    suspend fun getModuleOverview(): HomeModuleOverview = withContext(Dispatchers.IO) {
-        HomeModuleOverview(
-            count = runCatching { ksuCliRepository.getModuleCount() }.getOrDefault(0),
-            zygiskImplementation = runCatching {
-                ksuCliRepository.getZygiskImplement()
-            }.getOrDefault("None"),
-            metaModuleImplementation = runCatching {
-                ksuCliRepository.getMetaModuleImplement()
-            }.getOrDefault("None"),
-        )
-    }
-
-    suspend fun getSuperuserCount(): Int = withContext(Dispatchers.IO) {
-        runCatching { ksuCliRepository.getSuperuserCount() }.getOrDefault(0)
-    }
 
     @SuppressLint("PrivateApi")
     private fun getDeviceModel(): String = runCatching {

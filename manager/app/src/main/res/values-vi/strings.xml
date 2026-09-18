@@ -204,12 +204,6 @@
     <string name="module_failed_count">Cài đặt module %d thất bại</string>
     <string name="warning_of_meta_module_title">Yêu cầu Meta-module</string>
     <string name="warning_of_meta_module_summary">Module này muốn mount /system, Meta-module sẽ xử lý việc đó. Nếu không, nó có thể không hoạt động</string>
-    <string name="sort_name_asc">Tên (Tăng dần)</string>
-    <string name="sort_name_desc">Tên (Giảm dần)</string>
-    <string name="sort_install_time_new">Thời gian cài đặt (Mới)</string>
-    <string name="sort_install_time_old">Thời gian cài đặt (Cũ)</string>
-    <string name="sort_size_desc">Kích thước (Giảm dần)</string>
-    <string name="sort_size_asc">Kích thước (Tăng dần)</string>
     <string name="sort_usage_freq">Tần suất sử dụng</string>
     <string name="no_apps_in_category">Không có ứng dụng nào trong danh mục này</string>
     <string name="susfs_config_title">Cấu hình SuSFS</string>
@@ -362,8 +356,6 @@
     <string name="search_modules">Tìm module</string>
     <string name="module_package">Module</string>
     <string name="kernel_package">Kernel</string>
-    <string name="require_manager_version">Phiên bản %1$d của trình quản lý KernelSU đã quá lỗi thời để KernelSU hoạt động đúng cách. Hãy nâng cấp trình quản lý lên phiên bản %2$d hoặc cao hơn!</string>
-    <string name="require_kernel_version">Phiên bản %1$d của KernelSU đã quá cũ để trình quản lý có thể hoạt động bình thường. Hãy cập nhật lên phiên bản %2$d hoặc cao hơn!</string>
     <string name="no_any_umount_path">Không có đường dẫn umount nào tồn tại</string>
     <string name="umount_flags_hint">0=Unmount bình thường, 2=MNT_DETACH</string>
     <string name="changes_take_effect_immediately">Tất cả các thay đổi sẽ có hiệu lực ngay lập tức.</string>
@@ -402,4 +394,8 @@
     <string name="download_install">Cài đặt</string>
     <string name="notification_permission_description">Cần có Quyền truy cập vào thông báo để có thể hiện tiến trình tải.</string>
     <string name="notification_permission_denied">Tải thất bại: Cần có Quyền truy cập thông báo</string>
+    <string name="profile_flags">Cờ</string>
+    <string name="background_crop_method_title">Chọn 1 phương thức crop</string>
+    <string name="background_crop_failed">Cắt ảnh thất bại</string>
+    <string name="about_anime_character_sticker"><![CDATA[Hệ thống biểu tượng được cấp phép theo điều khoản thỏa thuận đặc biệt: tác phẩm do 怡子曰曰 vẽ minh họa, quyền tác giả thuộc về 明风 OuO, và các biểu tượng định dạng vector do dự án này cung cấp.]]></string>
 </resources>

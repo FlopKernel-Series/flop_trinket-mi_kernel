@@ -620,15 +620,12 @@ class KsuCliRepository(context: Context) {
     fun getZygiskImplement(): String {
         val zygiskModuleIds = listOf(
             "zygisksu",
-            "rezygisk",
-            "shirokozygisk"
+            "rezygisk"
         )
 
         for (moduleId in zygiskModuleIds) {
-            // 忽略禁用/即将删除
             if (SuFile.open("/data/adb/modules/$moduleId/disable").isFile || SuFile.open("/data/adb/modules/$moduleId/remove").isFile) continue
 
-            // 读取prop
             val propFile = SuFile.open("/data/adb/modules/$moduleId/module.prop")
             if (!propFile.isFile) continue
 

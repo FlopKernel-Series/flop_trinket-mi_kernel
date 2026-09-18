@@ -119,7 +119,7 @@ comment "------------------------WARNING-------------------------------"
 comment "ReSukiSU will check EVERY hooks in kernel compile process"
 comment "If anything mismatch with document, Kernel compile maybe FAILED!"
 comment "See document if you face any compile failed due to hook check"
-comment "Document: https://resukisu.github.io/guide/manual-integrate.html"
+comment "Document: https://resukisu.org/guide/manual-integrate.html"
 comment "--------------------------------------------------------------"
 
 config KSU_MANUAL_HOOK_AUTO_SETUID_HOOK

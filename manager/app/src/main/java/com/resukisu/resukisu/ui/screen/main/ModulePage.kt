@@ -27,15 +27,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -62,8 +58,8 @@ import androidx.compose.material.icons.twotone.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CheckableDropdownMenuItem
 import androidx.compose.material3.DropdownMenuGroup
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -159,6 +155,7 @@ import com.resukisu.resukisu.ui.theme.blurSource
 import com.resukisu.resukisu.ui.theme.renderBackgroundBlur
 import com.resukisu.resukisu.ui.util.LocalPermissionRequestInterface
 import com.resukisu.resukisu.ui.util.LocalSnackbarHost
+import com.resukisu.resukisu.ui.util.adaptiveScaffoldWindowInsets
 import com.resukisu.resukisu.ui.util.downloader.download
 import com.resukisu.resukisu.ui.util.module.Shortcut
 import com.resukisu.resukisu.ui.util.showReplacingSnackbar
@@ -197,7 +194,7 @@ fun ModulePage(bottomPadding: Dp) {
     val context = LocalContext.current
     val viewModel = koinViewModel<ModuleViewModel>()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val homeState by koinViewModel<HomeViewModel>().state.collectAsStateWithLifecycle()
+    val homeState by koinViewModel<HomeViewModel>().uiState.collectAsStateWithLifecycle()
     val snackBarHost = LocalSnackbarHost.current
     val scope = rememberCoroutineScope()
     var lastClickTime by remember { mutableStateOf(0L) }
@@ -374,9 +371,7 @@ fun ModulePage(bottomPadding: Dp) {
         },
         containerColor = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.onSurface,
-        contentWindowInsets = WindowInsets.safeDrawing.only(
-            WindowInsetsSides.Top + WindowInsetsSides.Horizontal
-        ),
+        contentWindowInsets = adaptiveScaffoldWindowInsets(includeBottom = false),
         snackbarHost = {
             SwipeableSnackbarHost(
                 hostState = snackBarHost
@@ -499,11 +494,11 @@ private fun ModuleDropdown(
         DropdownMenuGroup(
             shapes = MenuDefaults.groupShapes(),
         ) {
-            DropdownMenuItem(
+            CheckableDropdownMenuItem(
                 checked = uiState.sortActionFirst,
-                onCheckedChange = { checked ->
+                onCheckedChange = {
                     viewModel.dispatch(
-                        ModuleUiAction.Sort(uiState.sortEnabledFirst, checked)
+                        ModuleUiAction.Sort(uiState.sortEnabledFirst, it)
                     )
                 },
                 text = { Text(stringResource(R.string.module_sort_action_first)) },
@@ -512,11 +507,11 @@ private fun ModuleDropdown(
                     count = 2,
                 ),
             )
-            DropdownMenuItem(
+            CheckableDropdownMenuItem(
                 checked = uiState.sortEnabledFirst,
-                onCheckedChange = { checked ->
+                onCheckedChange = {
                     viewModel.dispatch(
-                        ModuleUiAction.Sort(checked, uiState.sortActionFirst)
+                        ModuleUiAction.Sort(it, uiState.sortActionFirst)
                     )
                 },
                 text = { Text(stringResource(R.string.module_sort_enabled_first)) },

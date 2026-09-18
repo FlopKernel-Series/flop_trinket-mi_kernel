@@ -78,7 +78,7 @@ pub enum SuSFSSubCommands {
     /// This command must be completed with <update_sus_kstat> later after the added path is bind mounted or overlayed.
     ///
     /// * Important Notes *
-    /// - Only effective for umounted process with uid >= 10000.
+    /// - Effective for all processes with uid >= 10000
     #[command(name = "add_sus_kstat")]
     AddSusKstat {
         /// Path of file or directory
@@ -90,7 +90,7 @@ pub enum SuSFSSubCommands {
     /// This updates the target ino, but size and blocks are remained the same as current stat.
     ///
     /// * Important Notes *
-    /// - Only effective for umounted process with uid >= 10000.
+    /// - Effective for all processes with uid >= 10000
     #[command(name = "update_sus_kstat")]
     UpdateSusKstat {
         /// Path of file or directory
@@ -102,7 +102,7 @@ pub enum SuSFSSubCommands {
     /// This updates the target ino only, other stat members are remained the same as the original stat.
     ///
     /// * Important Notes *
-    /// - Only effective for umounted process with uid >= 10000.
+    /// - Effective for all processes with uid >= 10000
     #[command(name = "update_sus_kstat_full_clone")]
     UpdateSusKstatFullClone {
         /// Path of file or directory
@@ -112,7 +112,7 @@ pub enum SuSFSSubCommands {
     /// Spoof the kstat of a file or directory by static fields.
     ///
     /// * Important Notes *
-    /// - Only effective for umounted process with uid >= 10000.
+    /// - Effective for all processes with uid >= 10000.
     #[command(name = "add_sus_kstat_statically")]
     AddSusKstatStatically {
         /// Path of file or directory
