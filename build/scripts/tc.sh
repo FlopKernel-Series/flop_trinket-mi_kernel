@@ -297,13 +297,8 @@ prep_toolchain() {
     KBUILD_COMPILER_STRING=$("$toolchain_dir/bin/clang" -v 2>&1 | head -n 1 | sed 's/(https..*//' | sed 's/ version//')
     export KBUILD_COMPILER_STRING
 
-    if [[ "$USE_GCC_BINUTILS" == "1" ]]; then
-        CCARM64_PREFIX="aarch64-linux-androideabi-"
-        CCARM_PREFIX="arm-linux-androideabi-"
-    else
-        CCARM64_PREFIX="aarch64-linux-gnu-"
-        CCARM_PREFIX="arm-linux-gnueabi-"
-    fi
+    CCARM64_PREFIX="aarch64-linux-gnu-"
+    CCARM_PREFIX="arm-linux-gnueabi-"
 }
 
 ## Pre-build toolchain
