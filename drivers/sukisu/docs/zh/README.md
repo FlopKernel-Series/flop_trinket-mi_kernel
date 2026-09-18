@@ -38,7 +38,7 @@
 
 ## 集成
 
-请参考[文档](https://ReSukiSU.github.io)
+请参考[文档](https://Resukisu.org)
 
 ## 参与翻译
 

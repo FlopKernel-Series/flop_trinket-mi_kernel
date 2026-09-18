@@ -40,7 +40,7 @@ A based-on [`SukiSU-Ultra/SukiSU-Ultra`](https://github.com/SukiSU-Ultra/SukiSU-
 
 ## Integration
 
-See the [documentation](https://ReSukiSU.github.io).
+See the [documentation](https://Resukisu.org).
 
 ## Translation
 

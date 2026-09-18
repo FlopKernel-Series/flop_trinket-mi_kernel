@@ -278,12 +278,6 @@
     <string name="kernel_flashing">Kernel telepítés</string>
     <string name="warning_of_meta_module_title">Metamodul szükséges</string>
     <string name="warning_of_meta_module_summary">Ez a modul adatot akar csatolni a fájlrendszer /system névterébe, ehhez metamodul szükséges. Másképp a megfelelő működés nem garantált</string>
-    <string name="sort_name_asc">ABC sorrendben növekvő</string>
-    <string name="sort_name_desc">ABC sorrendben csökkenő</string>
-    <string name="sort_install_time_new">Telepítés ideje szerint (újabbak előre)</string>
-    <string name="sort_install_time_old">Telepítés ideje szerint (régebbiek előre)</string>
-    <string name="sort_size_desc">Tárhelyben elfoglalt méretük szerint csökkenő</string>
-    <string name="sort_size_asc">Tárhelyben elfoglalt méretük szerint növekvő</string>
     <string name="sort_usage_freq">Leggyakrabban használtak</string>
     <string name="no_apps_in_category">Ebben a kategóriában applikáció nem található</string>
     <string name="sulog_search_placeholder">Keresés naplóban</string>
@@ -353,8 +347,6 @@
     <string name="author">Fejlesztő(k)</string>
     <string name="description">Leírás</string>
     <string name="supported_devices">Támogatott készülékek</string>
-    <string name="require_manager_version">Úgy tűnik a root menedzser verzió %1$d túl alacsony. Jelen esetben a KernelSU implementáció megfelelő működéséhez minimum %2$d verzió szükséges!</string>
-    <string name="require_kernel_version">Úgy tűnik a kernelbe telepített KernelSU implementáció verzió %1$d túl alacsony. Jelen esetben a root menedzser megfelelő működéséhez minimum %2$d verzió szükséges!</string>
     <string name="umount_path_manager">Leválasztandó elérési útvonalak</string>
     <string name="umount_path_manager_summary">Fájlrendszer elérési útvonalak kezelése a leválasztáshoz</string>
     <string name="no_any_umount_path">Nincs megadva elérési útvonal</string>
@@ -536,4 +528,17 @@
     <string name="susfs_enable_config">SuSFS Menedzser</string>
     <string name="susfs_enable_config_summary">Beépített SuSFS Menedzser engedélyezése vagy letiltása. Valamely harmadik féltől származó modullal összeférhetetlen lehet.</string>
     <string name="susfs_config_disable_warning">Beépített SuSFS Menedzser letiltva. Engedélyezd, vagy telepíts egy harmadik féltől származó modult a SuSFS funkciók használatához.</string>
+    <string name="about_anime_character_sticker"><![CDATA[Az ikonok egy különleges megállapodás keretében kerültek licencelésre: a rajzokat 怡子曰曰 készítette, a szerzői jogok 明风 OuO-t illetik, a vektorizált ikonokat pedig ez a projekt biztosítja.]]></string>
+    <string name="require_manager_version">Root menedzser frissítése szükséges</string>
+    <string name="require_kernel_version">Kernel frissítése szükséges. Kattints a telepítéshez.</string>
+    <string name="require_kernel_version_gki">Kernel frissítése szükséges</string>
+    <string name="home_card_icons_summary">Kezdőlap kártyáinak ikonosítása</string>
+    <string name="home_card_icons">Ikonok megjelenítése a kezdőlap kártyáin</string>
+    <string name="navigation_bar_badge_summary">Superuser folyamatok és modulok számának megjelenítése a navigációs sávon</string>
+    <string name="navigation_bar_badge">Bélyegek a navigációs sávon</string>
+    <string name="sort_size">Méret szerint</string>
+    <string name="reverse_order">Fordított sorrendben</string>
+    <string name="sort_update_time">Legutóbbi frissítés ideje szerint</string>
+    <string name="sort_install_time">Telepítés ideje szerint</string>
+    <string name="sort_name">Név szerint</string>
 </resources>

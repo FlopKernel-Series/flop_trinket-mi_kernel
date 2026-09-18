@@ -261,12 +261,6 @@
     <string name="kernel_flashing">Çekirdek Yükleniyor</string>
     <string name="warning_of_meta_module_title">Meta modül gerektirir</string>
     <string name="warning_of_meta_module_summary">Bu modül, meta modül tarafından yönetilen /system bölümünü bağlamak istiyor. Bu modül meta modül olmadan çalışmayabilir</string>
-    <string name="sort_name_asc">İsme göre artan sırada</string>
-    <string name="sort_name_desc">İsme göre azalan sırada</string>
-    <string name="sort_install_time_new">Kurulum zamanı (yeni)</string>
-    <string name="sort_install_time_old">Kurulum zamanı (eski)</string>
-    <string name="sort_size_desc">Boyuta göre azalan sırada</string>
-    <string name="sort_size_asc">Boyuta göre artan sırada</string>
     <string name="sort_usage_freq">Kullanım sıklığına göre</string>
     <string name="no_apps_in_category">Bu kategoride uygulama yok</string>
     <string name="persistent">Kalıcı</string>
@@ -400,8 +394,6 @@
     <string name="predictive_back_animation_ksu_classic">KernelSU Klasik</string>
     <string name="predictive_back_exit_direction_follow_gesture">Hareketi Takip Et</string>
     <string name="kernel_package">Çekirdek</string>
-    <string name="require_manager_version">KernelSU yöneticisinin mevcut sürümü %1$d, bu KernelSU\'nun düzgün çalışması için çok düşük. Lütfen yöneticiyi %2$d veya daha yüksek bir sürüme yükseltin!</string>
-    <string name="require_kernel_version">Mevcut KernelSU sürümü %1$d yöneticinin düzgün çalışması için çok düşük. Lütfen %2$d veya daha yüksek bir sürüme yükseltin!</string>
     <string name="download_channel_name">Modül İndirmeleri</string>
     <string name="download_progress_title">İndiriliyor %s</string>
     <string name="download_complete_title">İndirildi</string>
@@ -531,4 +523,13 @@
     <string name="susfs_uid_scheme_unmounted">Bağlantısı Kesik</string>
     <string name="susfs_status_no_data">Veri Yok</string>
     <string name="susfs_tab_open_redirect">Yönlendirmeyi Aç</string>
+    <string name="about_anime_character_sticker"><![CDATA[Simgeler özel bir lisans anlaşması kapsamında kullanılmaktadır: 怡子曰曰 tarafından çizilmiş, telif hakkı 明风 OuO\'ya aittir ve vektörleştirilmiş simgeler bu proje tarafından sağlanmaktadır.]]></string>
+    <string name="settings_custom_monospace_font">Yerleşik eş aralıklı yazı tipini kullan</string>
+    <string name="settings_custom_monospace_font_summary">Günlükleri görüntülerken sistemin eş aralıklı yazı tipiyle ilgili sorunları önlemek için yerleşik JetBrains Mono yazı tipini kullanır</string>
+    <string name="susfs_enable_config">SUSFS Yöneticisi</string>
+    <string name="susfs_enable_config_summary">Yerleşik SUSFS yöneticisini etkinleştirir. Üçüncü taraf modüllerle çakışabilir.</string>
+    <string name="susfs_config_disable_warning">Yerleşik SUSFS yöneticisi devre dışı. SUSFS özelliklerini kullanmak için bunu etkinleştirin veya üçüncü taraf bir modül yükleyin.</string>
+    <string name="require_manager_version">Yönetici güncellemesi gerekiyor</string>
+    <string name="require_kernel_version">Çekirdek güncellemesi gerekiyor. Kurmak için dokunun.</string>
+    <string name="require_kernel_version_gki">Çekirdek güncellemesi gerekiyor</string>
 </resources>

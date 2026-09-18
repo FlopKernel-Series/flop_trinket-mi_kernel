@@ -217,9 +217,6 @@ class SettingsPlatformRepository(
             selinuxHideStatus = runCatching {
                 ksuCliRepository.getFeatureStatus("selinux_hide")
             }.getOrDefault(""),
-            webViewZygoteUmountStatus = runCatching {
-                ksuCliRepository.getFeatureStatus("webview_zygote_umount")
-            }.getOrDefault(""),
         )
     }
 
@@ -258,7 +255,6 @@ class SettingsPlatformRepository(
         cardConfig.save()
         themeConfig.preventBackgroundRefresh = false
         backgroundManager.saveBackgroundDim(0f)
-        backgroundManager.saveEnableBlur(false)
         backgroundManager.saveEnableBlurExp(false)
         backgroundManager.saveUseBackgroundSeedColor(false)
         backgroundManager.saveEnableHighContrastMode(false)

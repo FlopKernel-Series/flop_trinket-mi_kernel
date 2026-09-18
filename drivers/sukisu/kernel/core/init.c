@@ -142,6 +142,10 @@ void setup_ksu_cred(void)
 {
     setup_ksu_cred_selinux();
 #ifdef KSU_COMPAT_REQUIRE_SESSION_KEYRING
+    if (init_session_keyring == NULL) {
+        init_session_keyring = ksu_get_session_keyring(current_cred());
+    }
+
     setup_ksu_cred_session_keyring();
 #endif
 }
@@ -154,6 +158,11 @@ bool allow_shell = false;
 
 bool ksu_no_custom_rc = false;
 module_param_named(norc, ksu_no_custom_rc, bool, 0);
+
+#ifdef MODULE
+bool ksu_bundled = false;
+module_param_named(bundled, ksu_bundled, bool, 0);
+#endif
 
 char ksu_block_modules[256];
 module_param_string(block_modules, ksu_block_modules, sizeof(ksu_block_modules), 0);

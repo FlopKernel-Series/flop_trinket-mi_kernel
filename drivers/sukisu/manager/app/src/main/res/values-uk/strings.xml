@@ -303,12 +303,6 @@
     <string name="kernel_flashing">Прошивка ядра</string>
     <string name="warning_of_meta_module_title">Потрібен метамодуль</string>
     <string name="warning_of_meta_module_summary">Цей модуль хоче монтувати /system; цим займатиметься метамодуль. Без нього модуль може не працювати</string>
-    <string name="sort_name_asc">Назва за зростанням</string>
-    <string name="sort_name_desc">Назва за спаданням</string>
-    <string name="sort_install_time_new">Час встановлення (нові)</string>
-    <string name="sort_install_time_old">Час встановлення (старі)</string>
-    <string name="sort_size_desc">Розмір за спаданням</string>
-    <string name="sort_size_asc">Розмір за зростанням</string>
     <string name="sort_usage_freq">Частота використання</string>
     <string name="no_apps_in_category">Немає додатків у цій категорії</string>
     <string name="persistent">Постійний</string>
@@ -367,8 +361,6 @@
     <string name="sus_maps_description_text">Приховати реальні шляхи до файлів відображень пам\'яті у /proc/self/[maps|smaps|smaps_rollup|map_files|mem|pagemap]. Зверніть увагу: ця функція не підтримує приховання анонімних відображень пам\'яті та не може приховати inline-хуки або PLT-хуки, спричинені самою впровадженою бібліотекою</string>
     <string name="sus_maps_warning">Важливе попередження: для додатків з добре реалізованими механізмами виявлення впровадження ця функція може не ефективно обійти виявлення</string>
     <string name="sus_maps_debug_info">Спочатку знайдіть PID та UID цільового додатка за допомогою ps -enf, потім перевірте відповідні шляхи в /proc/&lt;pid&gt;/maps та порівняйте номери пристроїв із /proc/1/mountinfo для забезпечення відповідності. Тільки при збігу номерів пристроїв функція приховання map працюватиме правильно</string>
-    <string name="require_manager_version">Поточна версія менеджера KernelSU %1$d є занадто низькою для коректної роботи KernelSU. Будь ласка, оновіть менеджер до версії %2$d або вище!</string>
-    <string name="require_kernel_version">Поточна версія KernelSU %1$d є занадто низькою для коректної роботи менеджера. Будь ласка, оновіть до версії %2$d або вище!</string>
     <string name="umount_path_manager">Керування шляхами розмонтування</string>
     <string name="umount_path_manager_summary">Керувати шляхами розмонтування ядра</string>
     <string name="no_any_umount_path">Шляхи розмонтування відсутні</string>
@@ -515,8 +507,8 @@
     <string name="dynamic_manager_clear_confirm_title">Очистити динамічний менеджер</string>
     <string name="dynamic_manager_clear_confirm_message">Ви впевнені, що хочете очистити налаштування динамічного менеджера?</string>
     <string name="manage_managers">Керування менеджерами</string>
-    <string name="home_version_info">Інформація про версію</string>
-    <string name="home_status_info">Інформація про стан</string>
+    <string name="home_version_info">Інформація</string>
+    <string name="home_status_info">Стан</string>
     <string name="home_short_info">Суперкористувач: %1$d, Модулі: %2$d</string>
     <string name="home_kernel_version">Версія драйвера ядра</string>
     <string name="search_no_any_match">Жодного збігу не знайдено</string>
@@ -536,4 +528,17 @@
     <string name="susfs_enable_config_summary">Увімкнути вбудований менеджер SUSFS. Може конфліктувати зі сторонніми модулями.</string>
     <string name="susfs_enable_config">Менеджер SUSFS</string>
     <string name="settings_custom_monospace_font">Використовувати вбудований моноширинний шрифт</string>
+    <string name="about_anime_character_sticker"><![CDATA[Піктограми ліцензовані за спеціальною угодою: намальовані 怡子曰曰, авторські права належать 明风 OuO, а векторизовані піктограми надані цим проєктом.]]></string>
+    <string name="require_kernel_version_gki">Потрібне оновлення ядра</string>
+    <string name="require_manager_version">Потрібне оновлення менеджера</string>
+    <string name="require_kernel_version">Потрібне оновлення ядра. Натисніть, щоб встановити.</string>
+    <string name="home_card_icons_summary">Додати іконки до інформаційних карток на головному екрані</string>
+    <string name="home_card_icons">Показувати іконки на картках головного екрана</string>
+    <string name="navigation_bar_badge_summary">Показувати кількість прав суперкористувача / модулів на панелі навігації</string>
+    <string name="navigation_bar_badge">Позначки на панелі навігації</string>
+    <string name="sort_install_time">Час встановлення</string>
+    <string name="sort_update_time">Час оновлення</string>
+    <string name="sort_size">Розмір</string>
+    <string name="reverse_order">Зворотний порядок</string>
+    <string name="sort_name">Ім\'я</string>
 </resources>

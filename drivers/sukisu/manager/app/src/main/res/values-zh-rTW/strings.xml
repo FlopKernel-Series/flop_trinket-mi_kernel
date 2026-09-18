@@ -197,6 +197,8 @@
     <string name="settings_custom_background_summary">選擇一張圖片作為應用程式背景</string>
     <string name="settings_config_enable_blur">啟用模糊</string>
     <string name="settings_config_enable_blur_summary">對這個 App 啟用模糊處理</string>
+    <string name="enable_floating_bottom_bar">浮動底欄</string>
+    <string name="enable_floating_bottom_bar_summary">使用 Apple 風格的浮動底欄</string>
     <string name="settings_exp_draw_background_to_blur">模糊渲染自定義背景</string>
     <string name="settings_exp_draw_background_to_blur_description">實驗性功能，請自行承擔風險</string>
     <string name="settings_config_use_custom_background_seed_color">從自定義背景影像中取色</string>
@@ -297,12 +299,6 @@
     <string name="kernel_flashing">正在刷寫內核</string>
     <string name="warning_of_meta_module_title">需要元模組</string>
     <string name="warning_of_meta_module_summary">這個模組需要元模組掛載 /system。否則，它將無法運作</string>
-    <string name="sort_name_asc">名稱遞增</string>
-    <string name="sort_name_desc">名稱遞減</string>
-    <string name="sort_install_time_new">安裝時間（新）</string>
-    <string name="sort_install_time_old">安裝時間（舊）</string>
-    <string name="sort_size_desc">大小遞減</string>
-    <string name="sort_size_asc">大小遞增</string>
     <string name="sort_usage_freq">使用頻率</string>
     <string name="no_apps_in_category">無此分類中的應用程式</string>
     <string name="persistent">永久</string>
@@ -361,8 +357,6 @@
     <string name="sus_maps_description_text">從 /proc/self/[maps|smaps|smaps_rollup|map_files|mem|pagemap] 中隱藏記憶體映射的真實檔案路徑。請注意：此功能不支援隱藏「匿名記憶體映射」，也無法隱藏由程式庫本身注入產生的內聯掛鉤或 PLT 掛鉤</string>
     <string name="sus_maps_warning">重要提示：對於具備完整注入偵測機制的應用程式，此功能可能無法有效繞過偵測</string>
     <string name="sus_maps_debug_info">首先透過 ps -enf 搜尋目標應用程式的 PID 和 UID，然後檢查 /proc/&lt;pid&gt;/maps 中的相關路徑，並與 /proc/1/mountinfo 中的裝置號碼進行比對確保一致性。只有當裝置號碼一致時，隱藏映射才能正常運作</string>
-    <string name="require_manager_version">目前 KernelSU 管理器版本 %1$d 過低，KernelSU 無法正常運作。請將 KernelSU 管理器版本升級至 %2$d 或以上！</string>
-    <string name="require_kernel_version">目前 KernelSU 版本 %1$d 過低，管理器無法正常運作。請將內核 KernelSU 版本升級至 %2$d 或以上！</string>
     <string name="umount_path_manager">卸載路徑管理</string>
     <string name="umount_path_manager_summary">管理內核卸載路徑</string>
     <string name="no_any_umount_path">沒有既有的內核卸載路徑</string>
