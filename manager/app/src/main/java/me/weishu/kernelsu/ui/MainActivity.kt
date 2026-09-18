@@ -34,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
@@ -54,6 +55,7 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import me.weishu.kernelsu.Natives
@@ -93,7 +95,6 @@ import me.weishu.kernelsu.ui.util.getSuperuserCount
 import me.weishu.kernelsu.ui.util.install
 import me.weishu.kernelsu.ui.util.rememberBlurBackdrop
 import me.weishu.kernelsu.ui.util.rememberContentReady
-import me.weishu.kernelsu.ui.util.rootAvailable
 import me.weishu.kernelsu.ui.viewmodel.MainActivityViewModel
 import me.weishu.kernelsu.ui.viewmodel.MainPagerConfig
 import me.weishu.kernelsu.ui.viewmodel.ModuleViewModel
@@ -108,10 +109,8 @@ class MainActivity : ComponentActivity() {
     private val intentChannel = Channel<Intent>(capacity = Channel.BUFFERED)
     private var contentReady = false
     private var splashStartedAt = 0L
+    private val splashAnimationDurationMs = 500L
 
-    private companion object {
-        const val SplashAnimationDurationMs = 200L
-    }
 
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -119,10 +118,11 @@ class MainActivity : ComponentActivity() {
         splashStartedAt = SystemClock.uptimeMillis()
         super.onCreate(savedInstanceState)
         splashScreen.setKeepOnScreenCondition {
-            !contentReady || SystemClock.uptimeMillis() - splashStartedAt < SplashAnimationDurationMs
+            !contentReady || SystemClock.uptimeMillis() - splashStartedAt < splashAnimationDurationMs
         }
 
-        if (Natives.isManager && !Natives.requireNewKernel()) install()
+        val isManager = Natives.isManager
+        if (isManager && Natives.kernelUAPIVersion == Natives.managerUAPIVersion) install()
 
         if (savedInstanceState == null) intent?.let { intentChannel.trySend(it) }
 
@@ -166,7 +166,6 @@ class MainActivity : ComponentActivity() {
                 LocalUiMode provides uiMode,
             ) {
                 KernelSUTheme(appSettings = appSettings, uiMode = uiMode) {
-                    SideEffect { contentReady = true }
                     IntentDispatcher(intentChannel = intentChannel)
                     val mainScreenEntry = @Composable {
                         MainScreen(
@@ -223,6 +222,7 @@ class MainActivity : ComponentActivity() {
 
                         UiMode.Miuix -> Scaffold { navDisplay() }
                     }
+                    SideEffect { contentReady = true }
                 }
             }
         }
@@ -253,31 +253,49 @@ fun MainScreen(
         pagerState = pagerState,
         animatePageChanges = !useNavigationRail,
     )
-    val isManager = Natives.isManager
-    val isFullFeatured = isManager && !Natives.requireNewKernel() && rootAvailable()
+    val isFullFeatured = Natives.isFullFeatured()
     var userScrollEnabled by remember(isFullFeatured) { mutableStateOf(isFullFeatured) }
 
     val enableNavigationBadge = LocalEnableNavigationBadge.current
     val badgeEnabled = enableNavigationBadge && isFullFeatured
     val moduleViewModel = viewModel<ModuleViewModel>()
     val moduleUiState by moduleViewModel.uiState.collectAsStateWithLifecycle()
-    LaunchedEffect(badgeEnabled) {
-        // The module list normally loads when the module pager is first visited; load it eagerly
-        // so the badge is populated while the user is still on another tab.
-        if (badgeEnabled && moduleViewModel.uiState.value.modules.isEmpty()) {
-            moduleViewModel.initializePreferences()
-            moduleViewModel.loadModuleList()
-            moduleViewModel.syncModuleUpdateInfo(moduleViewModel.uiState.value.modules)
-        }
-    }
 
-    // Loading the app list just for a badge is too expensive; read the kernel allowlist instead.
     val superUserViewModel = viewModel<SuperUserViewModel>()
     val grantedUidCount by remember(superUserViewModel) {
         superUserViewModel.uiState
             .map { state -> state.groupedApps.count { it.anyAllowSu } }
             .distinctUntilChanged()
     }.collectAsStateWithLifecycle(0)
+
+    var startupPreloadStarted by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(isFullFeatured) {
+        if (!isFullFeatured || startupPreloadStarted) {
+            return@LaunchedEffect
+        }
+
+        moduleViewModel.initializePreferences()
+        val moduleState = moduleViewModel.uiState.value
+        if (!moduleState.hasLoaded) {
+            if (!moduleState.isRefreshing) moduleViewModel.fetchModuleList()
+            moduleViewModel.uiState.first { it.hasLoaded }
+        }
+        moduleViewModel.syncModuleUpdateInfo(moduleViewModel.uiState.value.modules)
+
+        val superUserState = superUserViewModel.uiState.value
+        if (!superUserState.hasLoaded) {
+            superUserViewModel.initializePreferences()
+            if (superUserState.isRefreshing) {
+                superUserViewModel.uiState.first { it.hasLoaded }
+            } else {
+                superUserViewModel.loadAppList().join()
+            }
+        }
+
+        startupPreloadStarted = true
+    }
+
+    // Loading the app list just for a badge is too expensive; read the kernel allowlist instead.
     var superuserCount by remember { mutableIntStateOf(0) }
     LaunchedEffect(badgeEnabled, grantedUidCount) {
         superuserCount = if (badgeEnabled) withContext(Dispatchers.IO) { getSuperuserCount() } else 0
@@ -332,10 +350,10 @@ fun MainScreen(
                 ) { page ->
                     val isCurrentPage = page == settledPage
                     when (page) {
-                        0 -> if (isCurrentPage || contentReady) HomePager(navController, bottomInnerPadding, isCurrentPage)
-                        1 -> if (isCurrentPage || contentReady) SuperUserPager(navController, bottomInnerPadding, isCurrentPage)
-                        2 -> if (isCurrentPage || contentReady) ModulePager(bottomInnerPadding, isCurrentPage)
-                        3 -> if (isCurrentPage || contentReady) SettingPager(navController, bottomInnerPadding)
+                        0 -> if (contentReady || isCurrentPage) HomePager(navController, bottomInnerPadding, isCurrentPage)
+                        1 -> if (contentReady || isCurrentPage) SuperUserPager(navController, bottomInnerPadding, isCurrentPage)
+                        2 -> if (contentReady || isCurrentPage) ModulePager(bottomInnerPadding, isCurrentPage)
+                        3 -> if (contentReady || isCurrentPage) SettingPager(navController, bottomInnerPadding, isCurrentPage)
                     }
                 }
             }

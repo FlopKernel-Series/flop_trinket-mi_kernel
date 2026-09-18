@@ -14,88 +14,20 @@
 #ifndef __KSU_H_KERNEL_COMPAT
 #define __KSU_H_KERNEL_COMPAT
 
-#if defined(CONFIG_KEYS) && LINUX_VERSION_CODE < KERNEL_VERSION(5, 2, 0)
-extern int install_session_keyring_to_cred(struct cred *cred, struct key *keyring);
-static struct key *init_session_keyring = NULL;
-
-bool is_init(const struct cred* cred);
-
-static inline int install_session_keyring(struct key *keyring)
-{
-	struct cred *new = prepare_creds();
-	if (!new)
-		return -ENOMEM;
-
-	int ret = install_session_keyring_to_cred(new, keyring);
-	if (ret < 0) {
-		abort_creds(new);
-		return ret;
-	}
-
-	return commit_creds(new);
-}
-
-// up to 5.1, struct key __rcu *session_keyring; /* keyring inherited over fork */
-// so we need to grab this using rcu_dereference
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)
-static inline struct key *ksu_get_current_session_keyring() { return rcu_dereference(current->cred->session_keyring); }
-#else
-static inline struct key *ksu_get_current_session_keyring() { return rcu_dereference(current->cred->tgcred->session_keyring); }
+#if LINUX_VERSION_CODE < KERNEL_VERSION (4, 18, 0)
+#include "external/linux_overflow.h"
 #endif
 
-static noinline void ksu_grab_init_session_keyring()
-{
-	if (init_session_keyring)
-		return;
-
-	if (!!strcmp(current->comm, "init"))
-		return;
-
-	if (!!!is_init(current_cred()))
-		return;
-
-	// now we are sure that this is the key we want
-	struct key *keyring = ksu_get_current_session_keyring();
-	if (!keyring)
-		return;
-
-	init_session_keyring = key_get(keyring);
-
-	pr_info("%s: init_session_keyring: 0x%lx \n", __func__, (uintptr_t)init_session_keyring);
-}
-
-static noinline struct file *ksu_filp_open_compat(const char *filename, int flags, umode_t mode)
-{
-	// it used to be that we put this on (current->flags & PF_WQ_WORKER)
-	// but since things actually needing this has been offloaded to kthread
-	// like allowlist write, we check for that instead.
-	if (!(current->flags & PF_KTHREAD))
-		goto filp_open;
-
-	if (!!ksu_get_current_session_keyring())
-		goto filp_open;
-	
-	if (!!!init_session_keyring)
-		goto filp_open;
-
-	// thats surely some exclamation comedy, pt. 2
-	// now we are sure that we need to install init keyring to current
-	install_session_keyring(init_session_keyring);
-
-filp_open:
-	return filp_open(filename, flags, mode);
-}
-#define filp_open ksu_filp_open_compat
-#else
-#define ksu_grab_init_session_keyring() do { } while (0)
-#endif // KEYS && < 5.2
+#if LINUX_VERSION_CODE < KERNEL_VERSION (3, 9, 0)
+#include "external/linux_hashtable.h"
+#endif
 
 #ifndef READ_ONCE
-#define READ_ONCE(x) (*(const volatile typeof(x) *)&(x))
+#define READ_ONCE(x) (*(const volatile typeof(x) __may_alias *)&(x))
 #endif
 
 #ifndef WRITE_ONCE
-#define WRITE_ONCE(x, y) (*(volatile typeof(x) *)&(x) = (typeof(x))(y))
+#define WRITE_ONCE(x, y) (*(volatile typeof(x) __may_alias *)&(x) = (typeof(x) __may_alias)(y))
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
@@ -203,6 +135,31 @@ __weak void memzero_explicit(void *s, size_t count) { memset_explicit(s, 0, coun
 #define ksu_is_seccomp_enabled() (!!current->seccomp.mode)
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
+// https://elixir.bootlin.com/linux/v4.14.336/source/fs/read_write.c#L418
+// https://elixir.bootlin.com/linux/v4.14.336/source/fs/read_write.c#L512
+static noinline ssize_t ksu_kernel_read_compat(struct file *p, void *buf, size_t count, loff_t *pos)
+{
+	mm_segment_t old_fs;
+	old_fs = get_fs();
+	set_fs(get_ds());
+	ssize_t result = vfs_read(p, (void __user *)buf, count, pos);
+	set_fs(old_fs);
+	return result;
+}
+static noinline ssize_t ksu_kernel_write_compat(struct file *p, const void *buf, size_t count, loff_t *pos)
+{
+	mm_segment_t old_fs;
+	old_fs = get_fs();
+	set_fs(get_ds());
+	ssize_t res = vfs_write(p, (__force const char __user *)buf, count, pos);
+	set_fs(old_fs);
+	return res;
+}
+#define kernel_read ksu_kernel_read_compat
+#define kernel_write ksu_kernel_write_compat
+#endif // < 4.14
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
 #define d_inode(dentry) ((dentry)->d_inode)
 #endif
@@ -248,17 +205,6 @@ __weak int path_mount(const char *dev_name, struct path *path, const char *type_
 }
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0)
-#ifndef replace_fops
-#define replace_fops(f, fops) \
-	do {	\
-		struct file *__file = (f); \
-		fops_put(__file->f_op); \
-		BUG_ON(!(__file->f_op = (fops))); \
-	} while(0)
-#endif
-#endif
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 9, 0)
 __weak int path_umount(struct path *path, int flags)
 {
@@ -272,6 +218,7 @@ __weak int path_umount(struct path *path, int flags)
 	mm_segment_t old_fs = get_fs();
 	set_fs(KERNEL_DS);
 
+	// https://github.com/rsuntk/KernelSU/commit/d20f15e
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 17, 0)
 	ret = ksys_umount((char __user *)usermnt, flags);
 #else
@@ -286,6 +233,17 @@ out:
 	path_put(path); 
 	return ret;
 }
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0)
+#ifndef replace_fops
+#define replace_fops(f, fops) \
+	do {	\
+		struct file *__file = (f); \
+		fops_put(__file->f_op); \
+		BUG_ON(!(__file->f_op = (fops))); \
+	} while(0)
+#endif
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 4, 0) && defined(CONFIG_JUMP_LABEL)
@@ -313,12 +271,12 @@ static inline void ksu_static_key_disable(struct static_key *key)
 #define static_branch_unlikely(k)	static_key_false(k)
 #define static_branch_likely(k)		static_key_true(k)
 
-#ifndef DEFINE_STATIC_KEY_FALSE
-#define DEFINE_STATIC_KEY_FALSE(k)	struct static_key k = STATIC_KEY_INIT_FALSE
-#endif
-
-#ifndef DEFINE_STATIC_KEY_TRUE
-#define DEFINE_STATIC_KEY_TRUE(k)	struct static_key k = STATIC_KEY_INIT_TRUE
+#ifdef CC_HAVE_ASM_GOTO
+#define DEFINE_STATIC_KEY_TRUE(k)	struct static_key k = { .enabled = ATOMIC_INIT(1), .entries = (void *)1 }
+#define DEFINE_STATIC_KEY_FALSE(k)	struct static_key k = { .enabled = ATOMIC_INIT(0), .entries = (void *)0 }
+#else
+#define DEFINE_STATIC_KEY_TRUE(k)	struct static_key k = { .enabled = ATOMIC_INIT(1) }
+#define DEFINE_STATIC_KEY_FALSE(k)	struct static_key k = { .enabled = ATOMIC_INIT(0) }
 #endif
 
 #endif // < 4.3
@@ -460,10 +418,6 @@ static inline u64 ksu_ktime_get_ns(void) { return ktime_to_ns(ktime_get()); }
 #define ktime_get_ns ksu_ktime_get_ns
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION (4, 18, 0)
-#include "external/linux_overflow.h"
-#endif
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION (3, 4, 0)
 // this is okay for current use
 // #define vm_mmap(__unused, addr, len, prot, flag, offset) sys_mmap_pgoff(addr, len, prot, flag, 0, offset >> PAGE_SHIFT)
@@ -484,35 +438,7 @@ __weak unsigned long vm_mmap(struct file *file, unsigned long addr, unsigned lon
 #endif
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
-// https://elixir.bootlin.com/linux/v4.14.336/source/fs/read_write.c#L418
-static noinline ssize_t ksu_kernel_read_compat(struct file *p, void *buf, size_t count, loff_t *pos)
-{
-	mm_segment_t old_fs;
-	old_fs = get_fs();
-	set_fs(get_ds());
-	ssize_t result = vfs_read(p, (void __user *)buf, count, pos);
-	set_fs(old_fs);
-	return result;
-}
-// https://elixir.bootlin.com/linux/v4.14.336/source/fs/read_write.c#L512
-static noinline ssize_t ksu_kernel_write_compat(struct file *p, const void *buf, size_t count, loff_t *pos)
-{
-	mm_segment_t old_fs;
-	old_fs = get_fs();
-	set_fs(get_ds());
-	ssize_t res = vfs_write(p, (__force const char __user *)buf, count, pos);
-	set_fs(old_fs);
-	return res;
-}
-#define kernel_read ksu_kernel_read_compat
-#define kernel_write ksu_kernel_write_compat
-#endif // < 4.14
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION (3, 9, 0)
-// hashtable.h, list.h, rculist.h
-// ref: https://github.com/torvalds/linux/commit/b67bfe0d42cac56c512dd5da4b1b347a23f4b70a
-#include "external/linux_hashtable.h"
 static inline int __must_check ksu_kref_get_unless_zero(struct kref *kref)
 { 
 	return atomic_add_unless(&kref->refcount, 1, 0); 
@@ -539,5 +465,81 @@ typedef struct { uid_t val; } ksu_kuid_t;
 static inline ksu_kuid_t current_uid() { return *(ksu_kuid_t *)(&current_cred()->uid); }
 static inline ksu_kuid_t current_euid() { return *(ksu_kuid_t *)(&current_cred()->euid); }
 #endif // < 3.14
+
+#if defined(CONFIG_KEYS) && LINUX_VERSION_CODE < KERNEL_VERSION(5, 2, 0)
+extern int install_session_keyring_to_cred(struct cred *cred, struct key *keyring);
+static struct key *init_session_keyring = nullptr;
+
+bool is_init(const struct cred* cred);
+
+static inline int install_session_keyring(struct key *keyring)
+{
+	struct cred *new = prepare_creds();
+	if (!new)
+		return -ENOMEM;
+
+	int ret = install_session_keyring_to_cred(new, keyring);
+	if (ret < 0) {
+		abort_creds(new);
+		return ret;
+	}
+
+	return commit_creds(new);
+}
+
+// up to 5.1, struct key __rcu *session_keyring; /* keyring inherited over fork */
+// so we need to grab this using rcu_dereference
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)
+static inline struct key *ksu_get_current_session_keyring() { return rcu_dereference(current->cred->session_keyring); }
+#else
+static inline struct key *ksu_get_current_session_keyring() { return rcu_dereference(current->cred->tgcred->session_keyring); }
+#endif
+
+static noinline void ksu_grab_init_session_keyring()
+{
+	if (init_session_keyring)
+		return;
+
+	if (!!strcmp(current->comm, "init"))
+		return;
+
+	if (!!!is_init(current_cred()))
+		return;
+
+	// now we are sure that this is the key we want
+	struct key *keyring = ksu_get_current_session_keyring();
+	if (!keyring)
+		return;
+
+	init_session_keyring = key_get(keyring);
+
+	pr_info("%s: init_session_keyring: 0x%lx \n", __func__, (uintptr_t)init_session_keyring);
+}
+
+static noinline struct file *ksu_filp_open_compat(const char *filename, int flags, umode_t mode)
+{
+	// it used to be that we put this on (current->flags & PF_WQ_WORKER)
+	// but since things actually needing this has been offloaded to kthread
+	// like allowlist write, we check for that instead.
+	if (!(current->flags & PF_KTHREAD))
+		goto filp_open;
+
+	if (!!ksu_get_current_session_keyring())
+		goto filp_open;
+	
+	if (!!!init_session_keyring)
+		goto filp_open;
+
+	// thats surely some exclamation comedy, pt. 2
+	// now we are sure that we need to install init keyring to current
+	install_session_keyring(init_session_keyring);
+
+filp_open:
+	return filp_open(filename, flags, mode);
+}
+#define filp_open ksu_filp_open_compat
+#else
+#define ksu_grab_init_session_keyring() do { } while (0)
+#endif // KEYS && < 5.2
 
 #endif // __KSU_H_KERNEL_COMPAT
