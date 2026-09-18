@@ -63,7 +63,7 @@ __maybe_unused void ksu_slow_avc_audit(u32 *tsid) { return; } // dummy
 #define __overloadable __attribute__((overloadable))
 #endif
 
-static void *slow_avc_audit_fn __read_mostly = NULL;
+static void *slow_avc_audit_fn __read_mostly = nullptr;
 
 static int __nocfi __overloadable ksu_slow_avc_audit_handler(u32 ssid, u32 tsid, u16 tclass, u32 requested, u32 audited, u32 denied, int result, struct common_audit_data *a)
 {
@@ -98,7 +98,7 @@ static typeof(slow_avc_audit) *ksu_slow_avc_audit_hook __read_mostly = ksu_slow_
 
 #else /* !clang */
 
-static void *slow_avc_audit_fn __read_mostly = NULL;
+static void *slow_avc_audit_fn __read_mostly = nullptr;
 
 #define SLOW_AVC_AUDIT_TYPE_1 u32, u32, u16, u32, u32, u32, int, struct common_audit_data *
 static int __nocfi ksu_slow_avc_audit_handler_1(u32 ssid, u32 tsid, u16 tclass, u32 requested, u32 audited, u32 denied, int result, struct common_audit_data *a)
@@ -191,8 +191,7 @@ skip2:
 	ret = arm64_bl_patch(symaddr, ksu_get_ksym_size(symaddr, 384 * sizeof(uint32_t)), (uintptr_t)slow_avc_audit_fn, (uintptr_t)ksu_slow_avc_audit_hook);
 	pr_info("avc_spoof: hook on slow_avc_audit on avc_has_perm ret: %d\n", ret);
 
-bail:
-	;
+bail:;
 	extern typeof(dotted_kallsyms_destroy_hash_array) dotted_kallsyms_destroy_hash_array;
 	dotted_kallsyms_destroy_hash_array();
 }

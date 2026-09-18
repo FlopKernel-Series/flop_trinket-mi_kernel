@@ -11,8 +11,8 @@ MDIR := $(realpath $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 $(info -- KDIR: $(KDIR))
 $(info -- MDIR: $(MDIR))
 
-# compliant to last upstream kernel change as of 32ce89f
-CFLAGS_ksu.o += -DKSU_VERSION=32612
+# compliant to last upstream kernel change as of 665fd96
+CFLAGS_ksu.o += -DKSU_VERSION=32630
 
 ifndef KSU_EXPECTED_SIZE
 KSU_EXPECTED_SIZE := 0x033b
@@ -58,6 +58,12 @@ ifeq ($(shell grep -q "struct selinux_state " $(srctree)/security/selinux/includ
 CFLAGS_ksu.o += -DKSU_COMPAT_HAS_SELINUX_STATE
 endif
 
+# UL, look for iterate_dir on ‎fs/readdir.c
+ifeq ($(shell grep -q "^int iterate_dir" $(srctree)/fs/readdir.c 2>/dev/null; echo $$?),0)
+$(info -- KernelSU/compat: iterate_dir found!)
+CFLAGS_ksu.o += -DKSU_HAS_ITERATE_DIR
+endif
+
 ifeq ($(shell grep -q "struct type_datum \*\*type_val_to_struct;" $(srctree)/security/selinux/ss/policydb.h; echo $$?),0)
 CFLAGS_ksu.o += -DKSU_TYPE_VAL_TO_STRUCT
 endif
@@ -88,12 +94,6 @@ $(info -- KernelSU/compat: f_op->read_iter found!)
 CFLAGS_ksu.o += -DKSU_HAS_FOP_READ_ITER
 endif
 
-# UL, look for iterate_dir on ‎fs/readdir.c
-ifeq ($(shell grep -q "^int iterate_dir" $(srctree)/fs/readdir.c 2>/dev/null; echo $$?),0)
-$(info -- KernelSU/compat: iterate_dir found!)
-CFLAGS_ksu.o += -DKSU_HAS_ITERATE_DIR
-endif
-
 CFLAGS_ksu.o += $(call cc-option, -Wno-declaration-after-statement)
 CFLAGS_ksu.o += $(call cc-option, -Wno-implicit-function-declaration)
 CFLAGS_ksu.o += $(call cc-option, -Wno-missing-prototypes)
@@ -108,6 +108,7 @@ CFLAGS_ksu.o += $(call cc-option, -Wno-format)
 CFLAGS_ksu.o += $(call cc-option, -Wno-macro-redefined)
 CFLAGS_ksu.o += $(call cc-option, -Wno-incompatible-pointer-types-discards-qualifiers)
 CFLAGS_ksu.o += $(call cc-option, -Wno-discarded-qualifiers)
+CFLAGS_ksu.o += $(call cc-option, -Wno-deprecated-octal-literals)
 
 # dont be too strict
 CFLAGS_REMOVE_ksu.o += -Werror
@@ -124,6 +125,17 @@ CFLAGS_REMOVE_ksu.o += -Oz
 CFLAGS_REMOVE_ksu.o += -Os
 CFLAGS_ksu.o += -O2
 endif
+
+# attempt to enable gnu11 up to gnu2y
+# we skip gnu2x here due to its inconsistency
+CFLAGS_ksu.o += $(call cc-option, -std=gnu11)
+CFLAGS_ksu.o += $(call cc-option, -std=gnu17)
+CFLAGS_ksu.o += $(call cc-option, -std=gnu23)
+CFLAGS_ksu.o += $(call cc-option, -std=gnu2y)
+
+#ifeq ($(shell $(CC) -v 2>&1 | grep -q 'clang'; echo $$?),0)
+# $(info -- KernelSU/CC: clang!)
+#endif
 
 # always inline atomics
 # clang and gcc CAN try to drop a runtime C11 atomics detector

@@ -27,14 +27,14 @@ static __always_inline void ksu_hosts_file_redirect(const char __user *filename,
 	if (likely(!ksu_kernel_umount_enabled))
 		return;
 
-	const char hf[] = "/system/etc/hosts";
-	uint64_t *hf_p = (uint64_t *)hf;
+	constexpr char hf[] = "/system/etc/hosts";
 
+	uint64_t *hf_p = (uint64_t *)hf;
 	uint64_t __user *fn_p = (uint64_t __user *)untagged_addr((void *)filename);
-	uint16_t *last_p = (uint16_t *)((char *)hf + 16);
-	uint16_t buf16;
 	__builtin_prefetch(fn_p);
 
+	uint16_t *last_p = (uint16_t *)((char *)hf + 16);
+	uint16_t buf16;
 	if (likely(get_user(buf16, (uint16_t __user *)((char __user *)fn_p + 16))))
 		return;
 
@@ -91,7 +91,8 @@ static __always_inline void ksu_hosts_file_redirect(const char __user *filename,
 
 #ifdef CONFIG_ARM64
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
-static syscall_fn_t aarch64_openat __read_mostly = NULL;
+static syscall_fn_t aarch64_openat __read_mostly = nullptr;
+extern long __arm64_sys_openat(const struct pt_regs *regs);
 asmlinkage long hook_aarch64_openat(const struct pt_regs *regs)
 {
 	const char __user *filename = (const char __user *)regs->regs[1];
@@ -106,7 +107,8 @@ orig_fn:
 }
 
 #ifdef CONFIG_COMPAT
-static syscall_fn_t armeabi_openat __read_mostly = NULL;
+static syscall_fn_t armeabi_openat __read_mostly = nullptr;
+extern long __arm64_compat_sys_openat(const struct pt_regs *regs);
 asmlinkage long hook_armeabi_openat(const struct pt_regs *regs)
 {
 	const char __user *filename = (const char __user *)regs->regs[1];
@@ -121,7 +123,7 @@ orig_fn:
 }
 #endif // CONFIG_COMPAT
 #else /* < 4.19 */
-static void *aarch64_openat __read_mostly = NULL;
+static void *aarch64_openat __read_mostly = nullptr;
 asmlinkage long hook_aarch64_openat(int dfd, const char __user *filename, int flags, umode_t mode)
 {
 	int fd = -1;
@@ -134,7 +136,7 @@ orig_fn:
 
 #ifdef CONFIG_COMPAT
 extern const void *compat_sys_call_table[];
-static void *armeabi_openat __read_mostly = NULL;
+static void *armeabi_openat __read_mostly = nullptr;
 asmlinkage long hook_armeabi_openat(int dfd, const char __user *filename, int flags, umode_t mode)
 {
 	int fd = -1;
@@ -150,7 +152,8 @@ orig_fn:
 #else /* ARM */
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
-static syscall_fn_t armeabi_openat __read_mostly = NULL;
+static syscall_fn_t armeabi_openat __read_mostly = nullptr;
+extern long sys_openat(const struct pt_regs *regs);
 asmlinkage long hook_armeabi_openat(const struct pt_regs *regs)
 {
 	const char __user *filename = (const char __user *)regs->regs[1];
@@ -164,7 +167,7 @@ orig_fn:
 	return sys_openat(regs);
 }
 #else /* < 4.19 */
-static void *armeabi_openat __read_mostly = NULL;
+static void *armeabi_openat __read_mostly = nullptr;
 asmlinkage long hook_armeabi_openat(int dfd, const char __user *filename, int flags, umode_t mode)
 {
 	int fd = -1;

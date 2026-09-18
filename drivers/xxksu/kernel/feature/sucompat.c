@@ -12,8 +12,8 @@ static bool ksu_su_compat_enabled __read_mostly = true;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)
 static void __user *userspace_stack_buffer(const void *d, size_t len)
 {
-	/* To avoid having to mmap a page in userspace, just write below the stack
-   * pointer. */
+	// To avoid having to mmap a page in userspace, just write below the stack
+	// pointer.
 	char __user *p = (void __user *)current_user_stack_pointer() - len;
 
 	return copy_to_user(p, d, len) ? NULL : p;
@@ -27,8 +27,7 @@ static void __user *userspace_stack_buffer(const void *d, size_t len)
 	volatile unsigned long start_stack = current->mm->start_stack;
 	unsigned int step = 32;
 	
-start_loop:
-	;
+start_loop:;
 	char __user *p = (void __user *)(start_stack - step - len);
 	if (IS_ENABLED(CONFIG_KSU_DEBUG))
 		pr_info("%s: start_stack: %lx p: %lx len: %zu\n", __func__, start_stack, (unsigned long)p, len );
@@ -41,21 +40,19 @@ start_loop:
 	if (step <= 2048)
 		goto start_loop;
 
-	return NULL;
+	return nullptr;
 }
 #endif
 
 static char __user *sh_user_path(void)
 {
-	static const char sh_path[] = "/system/bin/sh";
-
+	constexpr char sh_path[16] = SH_PATH;
 	return userspace_stack_buffer(sh_path, sizeof(sh_path));
 }
 
 static char __user *ksud_user_path(void)
 {
-	static const char ksud_path[] = KSUD_PATH;
-
+	constexpr char ksud_path[16] = KSUD_PATH;
 	return userspace_stack_buffer(ksud_path, sizeof(ksud_path));
 }
 
@@ -158,7 +155,7 @@ check_ptr:
 static __always_inline void ksu_sucompat_user_common(const char __user **filename_user, const char *syscall_name)
 {
 	uintptr_t buf;
-	const char su[16] = SU_PATH;
+	constexpr char su[16] = SU_PATH;
 
 	// sugar prep
 	uintptr_t *su_p = (uintptr_t *)su;
@@ -171,8 +168,8 @@ static __always_inline void ksu_sucompat_user_common(const char __user **filenam
 
 	/*
 	 * it seems this is actually the slowest part, so we peek last word first to speed it up
-	 * NOTE: get_user rets EFAULT on err, so if we are copying a pointer
-	 * that goes to nothing, we also detect that and ret fast
+	 * NOTE: get_user rets EFAULT on err, so if we are copying a pointer that points to nothing, 
+	 * we also detect that and ret fast
 	 *
 	 * first read overreads, reading 8 bytes, "bin/su\0?" /  4 bytes, "su\0?" when we only need 7/3
 	 * but this is fine as we are guaranteed alignment, hardware provides trailing garbeg
@@ -232,6 +229,8 @@ static __always_inline void ksu_sucompat_user_common(const char __user **filenam
 #endif
 	if (!!escape_with_root_profile())
 		return;
+
+	ksu_install_su_fd(); // ksu#3679
 
 	// NOTE: we only check file existence, not exec success!
 	struct path kpath;
@@ -311,7 +310,7 @@ static __always_inline void ksu_sucompat_kernel_common(int *restrict fd, void **
 	if (!!flags && !!*flags)
 		return;
 
-	const char su[16] = SU_PATH;
+	constexpr char su[16] = SU_PATH;
 
 #if 0 // defined(KSU_HAS_INT128)
 	uint128_t *su128 = (uint128_t *)su;
@@ -339,6 +338,8 @@ static __always_inline void ksu_sucompat_kernel_common(int *restrict fd, void **
 	if (!!escape_with_root_profile())
 		return;
 
+	ksu_install_su_fd(); // ksu#3679
+
 	// NOTE: we only check file existence, not exec success!
 	struct path kpath;
 	if (!!kern_path("/data/adb/ksud", 0, &kpath))
@@ -346,13 +347,13 @@ static __always_inline void ksu_sucompat_kernel_common(int *restrict fd, void **
 
 	path_put(&kpath);
 	pr_info("su_compat: %s su->ksud!%s\n", function_name, (is_compat_task()) ? " [compat]" : "");
-	const char ksud[16] = KSUD_PATH;
+	constexpr char ksud[16] = KSUD_PATH;
 	memcpy_inline(*filename_ptr, ksud, sizeof(ksud));
 	return;
 
 no_ksud:
 	pr_info("su_compat: %s su->sh!%s\n", function_name, (is_compat_task()) ? " [compat]" : "" );
-	const char sh[16] = SH_PATH;
+	constexpr char sh[16] = SH_PATH;
 	memcpy_inline(*filename_ptr, sh, sizeof(sh));
 	return;
 }
@@ -449,6 +450,8 @@ void __init ksu_sucompat_init()
 	if (ksu_register_feature_handler(&su_compat_handler)) {
 		pr_err("Failed to register su_compat feature handler\n");
 	}
+
+	tiny_sulog_init_heap();
 }
 
 void __exit ksu_sucompat_exit()

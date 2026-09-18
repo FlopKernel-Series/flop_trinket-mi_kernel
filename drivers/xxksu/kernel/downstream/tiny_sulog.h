@@ -26,7 +26,7 @@ struct sulog_entry {
 #define SULOG_ENTRY_MAX 250
 #define SULOG_BUFSIZ SULOG_ENTRY_MAX * (sizeof (struct sulog_entry))
 
-static void *sulog_buf_ptr = NULL;
+static void *sulog_buf_ptr = nullptr;
 static uint32_t sulog_index_next = 0;
 
 static void tiny_sulog_init_heap()
@@ -35,7 +35,7 @@ static void tiny_sulog_init_heap()
 	if (!sulog_buf_ptr)
 		return;
 	
-	pr_info("sulog_init: allocated %lu bytes on 0x%lx \n", SULOG_BUFSIZ, (uintptr_t)sulog_buf_ptr);
+	pr_info("tiny_sulog: allocated %lu bytes on 0x%lx \n", SULOG_BUFSIZ, (uintptr_t)sulog_buf_ptr);
 }
 
 /**
@@ -75,10 +75,10 @@ static inline uint32_t boottime_s_get()
  */
 static noinline void write_sulog(uint8_t sym)
 {
-	if (!sulog_buf_ptr)
+	if (unlikely(!sulog_buf_ptr))
 		return;
 
-	struct sulog_entry entry = {0};
+	struct sulog_entry entry;
 
 	// WARNING!!! this is LE only!
 	entry.s_time = boottime_s_get();
@@ -116,7 +116,7 @@ struct sulog_entry_rcv_ptr {
 
 static noinline int send_sulog_dump(void __user *uptr)
 {
-	if (!sulog_buf_ptr)
+	if (unlikely(!sulog_buf_ptr))
 		return 1;
 
 	struct sulog_entry_rcv_ptr sbuf = {0};
@@ -135,7 +135,13 @@ static noinline int send_sulog_dump(void __user *uptr)
 
 	uint32_t uptime = boottime_s_get();
 	uint32_t current_idx = __atomic_load_n(&sulog_index_next, __ATOMIC_ACQUIRE); // reader consume + barrier
-	memcpy(memory, sulog_buf_ptr, SULOG_BUFSIZ); // take a snapshot
+
+	uint64_t *dst_buf = (uint64_t *)memory;
+	uint64_t *src_buf = (uint64_t *)sulog_buf_ptr;
+
+	size_t i;
+	for (i = 0; i < SULOG_ENTRY_MAX; i++)
+		__atomic_load(&src_buf[i], &dst_buf[i], __ATOMIC_RELAXED);
 
 	if (copy_to_user((void __user *)(uintptr_t)sbuf.uptime_ptr, &uptime, sizeof(uptime) ))
 		return 1;
