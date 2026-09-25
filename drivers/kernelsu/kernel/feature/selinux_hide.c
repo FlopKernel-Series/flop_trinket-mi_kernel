@@ -18,7 +18,6 @@ static DEFINE_MUTEX(fake_status_init_mutex);
 
 extern bool ksu_input_hook __read_mostly;
 extern struct selinux_state selinux_state;
-extern int ksu_handle_slow_avc_audit(u32 *tsid);
 
 // enabled by default
 static bool ksu_selinux_hide_is_enabled __read_mostly = true;
@@ -36,36 +35,31 @@ static int ksu_selinux_get_sids(void)
 	return (!ksu_sid || !priv_app_sid) ? -1 : 0;
 }
 
-#if defined(CONFIG_KPROBES) && !defined(KSU_KPROBES_HOOK)
+#if defined(CONFIG_KPROBES)
 #include <linux/kprobes.h>
-#include <linux/slab.h>
-#include "arch.h"
 static struct kprobe *slow_avc_audit_kp;
 
 static int slow_avc_audit_pre_handler(struct kprobe *p, struct pt_regs *regs)
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0)
-	u32 *tsid = (u32 *)&PT_REGS_PARM2(regs);
-	ksu_handle_slow_avc_audit(tsid);
-#else
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 4, 0) && defined(KSU_COMPAT_USE_SELINUX_STATE)
 	u32 *tsid = (u32 *)&PT_REGS_PARM3(regs);
-	ksu_handle_slow_avc_audit(tsid);
+#else
+	u32 *tsid = (u32 *)&PT_REGS_PARM2(regs);
 #endif
+	if (ksu_selinux_hide_is_enabled && *tsid == ksu_sid) {
+		*tsid = priv_app_sid;
+	}
 	return 0;
 }
 
-static struct kprobe *init_kprobe(const char *name,
-				  kprobe_pre_handler_t handler)
+static struct kprobe *init_kprobe(const char *name, kprobe_pre_handler_t handler)
 {
-	struct kprobe *kp = kzalloc(sizeof(struct kprobe), GFP_KERNEL);
+	struct kprobe *kp = kzalloc(sizeof(*kp), GFP_KERNEL);
 	if (!kp)
 		return NULL;
 	kp->symbol_name = name;
 	kp->pre_handler = handler;
-
-	int ret = register_kprobe(kp);
-	pr_info("selinux_hide: register_%s kprobe: %d\n", name, ret);
-	if (ret) {
+	if (register_kprobe(kp)) {
 		kfree(kp);
 		return NULL;
 	}
@@ -74,12 +68,11 @@ static struct kprobe *init_kprobe(const char *name,
 
 static void destroy_kprobe(struct kprobe **kp_ptr)
 {
-	struct kprobe *kp = *kp_ptr;
-	if (!kp)
+	if (!*kp_ptr)
 		return;
-	unregister_kprobe(kp);
+	unregister_kprobe(*kp_ptr);
 	synchronize_rcu();
-	kfree(kp);
+	kfree(*kp_ptr);
 	*kp_ptr = NULL;
 }
 #endif
@@ -88,14 +81,14 @@ static void ksu_selinux_hide_enable(void)
 {
 	if (ksu_selinux_get_sids())
 		pr_warn("ksu_selinux_hide: sid grab failed\n");
-#if defined(CONFIG_KPROBES) && !defined(KSU_KPROBES_HOOK)
+#if defined(CONFIG_KPROBES)
 	slow_avc_audit_kp = init_kprobe("slow_avc_audit", slow_avc_audit_pre_handler);
 #endif
 }
 
 static void ksu_selinux_hide_disable(void)
 {
-#if defined(CONFIG_KPROBES) && !defined(KSU_KPROBES_HOOK)
+#if defined(CONFIG_KPROBES)
 	destroy_kprobe(&slow_avc_audit_kp);
 #endif
 }
