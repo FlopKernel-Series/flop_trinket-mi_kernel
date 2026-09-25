@@ -20,9 +20,11 @@
 #include <linux/sched.h>
 #endif
 #include <linux/ptrace.h>
+#include <linux/fcntl.h>
 
 #include "objsec.h"
 
+#include "arch.h"
 #include "policy/allowlist.h"
 #include "policy/feature.h"
 #include "klog.h" // IWYU pragma: keep
@@ -31,7 +33,7 @@
 #include "sucompat.h"
 #include "policy/app_profile.h"
 #include "selinux/selinux.h"
-#include "tiny_sulog.h"
+#include "sulog/event.h"
 
 #define SU_PATH "/system/bin/su"
 #define SH_PATH "/system/bin/sh"
@@ -91,6 +93,10 @@ int ksu_handle_faccessat(int *dfd, const char __user **filename_user,
 {
 	const char su[] = SU_PATH;
 
+	if (!ksu_su_compat_enabled) {
+		return 0;
+	}
+
 	if (!ksu_is_allow_uid_for_current(current_uid().val)) {
 		return 0;
 	}
@@ -100,7 +106,7 @@ int ksu_handle_faccessat(int *dfd, const char __user **filename_user,
 	strncpy_from_user_nofault(path, *filename_user, sizeof(path));
 
 	if (unlikely(!memcmp(path, su, sizeof(su)))) {
-		write_sulog('a');
+		ksu_compat_sulog('a');
 		pr_info("faccessat su->sh!\n");
 		*filename_user = sh_user_path();
 	}
@@ -112,6 +118,10 @@ int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags)
 {
 	// const char sh[] = SH_PATH;
 	const char su[] = SU_PATH;
+
+	if (!ksu_su_compat_enabled){
+		return 0;
+	}
 
 	if (!ksu_is_allow_uid_for_current(current_uid().val)) {
 		return 0;
@@ -126,7 +136,7 @@ int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags)
 	strncpy_from_user_nofault(path, *filename_user, sizeof(path));
 
 	if (unlikely(!memcmp(path, su, sizeof(su)))) {
-		write_sulog('s');
+		ksu_compat_sulog('s');
 		pr_info("newfstatat su->sh!\n");
 		*filename_user = sh_user_path();
 	}
@@ -134,15 +144,25 @@ int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags)
 	return 0;
 }
 
-long ksu_handle_execve_sucompat(const char __user **filename_user, int orig_nr, const struct pt_regs *regs)
+static long ksu_handle_execve_sucompat_common(const char __user **filename_user,
+		const char __user *const __user *argv_user, bool execveat,
+		const struct pt_regs *regs)
 {
 	const char su[] = SU_PATH;
 	const char __user *fn;
+	struct ksu_sulog_pending_event *pending_sucompat = NULL;
 	char path[sizeof(su) + 1];
 	long ret;
 	unsigned long addr;
 
+	if (execveat && ((int)PT_REGS_PARM1(regs) != AT_FDCWD ||
+			 (int)PT_REGS_SYSCALL_PARM4(regs) != 0))
+		goto do_orig_execve;
+
 	if (unlikely(!filename_user))
+		goto do_orig_execve;
+
+	if (!ksu_su_compat_enabled)
 		goto do_orig_execve;
 
 	if (!ksu_is_allow_uid_for_current(current_uid().val))
@@ -166,14 +186,16 @@ long ksu_handle_execve_sucompat(const char __user **filename_user, int orig_nr, 
 	if (likely(memcmp(path, su, sizeof(su))))
 		goto do_orig_execve;
 
-    write_sulog('x');
+	ksu_compat_sulog('x');
 
     pr_info("sys_execve su found\n");
+	pending_sucompat = ksu_sulog_capture_sucompat(*filename_user, argv_user, GFP_KERNEL);
     *filename_user = ksud_user_path();
 
 	ret = escape_with_root_profile();
 	if (ret) {
 		pr_err("escape_with_root_profile failed: %ld\n", ret);
+		ksu_sulog_emit_pending(pending_sucompat, ret, GFP_KERNEL);
 		goto do_orig_execve;
 	}
 	if (preempt_count() > 0) {
@@ -182,14 +204,30 @@ long ksu_handle_execve_sucompat(const char __user **filename_user, int orig_nr, 
 		struct file *f = ksu_filp_open_compat(KSUD_PATH, O_RDONLY, 0);
 		if (IS_ERR(f)) {
 			pr_warn("ksud inaccesible, aplicando fallback a sh\n");
+			ksu_sulog_emit_pending(pending_sucompat, ret, GFP_KERNEL);
 			*filename_user = sh_user_path();
 		} else {
 			filp_close(f, NULL);
+			ksu_sulog_emit_pending(pending_sucompat, ret, GFP_KERNEL);
 			*filename_user = ksud_user_path();
 		}
 	}
 do_orig_execve:
 	return 0;
+}
+
+long ksu_handle_execve_sucompat(const char __user **filename_user, int orig_nr, const struct pt_regs *regs)
+{
+	return ksu_handle_execve_sucompat_common(filename_user,
+			(const char __user *const __user *)PT_REGS_PARM2(regs),
+			false, regs);
+}
+
+long ksu_handle_execveat_sucompat_user(const char __user **filename_user, int orig_nr, const struct pt_regs *regs)
+{
+	return ksu_handle_execve_sucompat_common(filename_user,
+			(const char __user *const __user *)PT_REGS_PARM3(regs),
+			true, regs);
 }
 
 int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,
@@ -201,6 +239,9 @@ int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,
 	static const char ksud_path[] = KSUD_PATH;
 
 	if (unlikely(!filename_ptr))
+		return 0;
+
+	if (!ksu_su_compat_enabled)
 		return 0;
 
 	if (!ksu_is_allow_uid_for_current(current_uid().val))
@@ -219,39 +260,6 @@ int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,
 	escape_with_root_profile();
 
 	return 0;
-}
-
-int __ksu_handle_devpts(struct inode *inode)
-{
-#ifndef KSU_KPROBES_HOOK
-	if (!ksu_su_compat_enabled)
-		return 0;
-#endif
-
-	if (!current->mm) {
-		return 0;
-	}
-
-	uid_t uid = current_uid().val;
-	if (uid % 100000 < 10000) {
-		// not untrusted_app, ignore it
-		return 0;
-	}
-
-	if (likely(!ksu_is_allow_uid(uid)))
-		return 0;
-
-	struct inode_security_struct *sec = selinux_inode(inode);
-
-	if (ksu_file_sid && sec)
-		sec->sid = ksu_file_sid;
-	return 0;
-}
-
-// dead code: devpts handling
-int __maybe_unused ksu_handle_devpts(struct inode *inode)
-{
-	return __ksu_handle_devpts(inode);
 }
 
 // sucompat: permitted process can execute 'su' to gain root access.
