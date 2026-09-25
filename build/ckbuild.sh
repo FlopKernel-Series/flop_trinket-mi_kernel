@@ -201,7 +201,7 @@ fi
 CK_TYPE=""
 CK_TYPE_SHORT=""
 if [[ "$DO_KSU" == "1" ]]; then
-    CK_TYPE="KSUNext-SUSFS"
+    CK_TYPE="KSUNext"
     CK_TYPE_SHORT="KN"
 elif [ "$DO_SUKI" == "1" ]; then
     CK_TYPE="ReSukiSU-SUSFS"
