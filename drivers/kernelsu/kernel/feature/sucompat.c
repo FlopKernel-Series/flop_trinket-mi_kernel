@@ -23,7 +23,6 @@
 
 #include "objsec.h"
 
-#include "arch.h"
 #include "policy/allowlist.h"
 #include "policy/feature.h"
 #include "klog.h" // IWYU pragma: keep
@@ -32,7 +31,7 @@
 #include "sucompat.h"
 #include "policy/app_profile.h"
 #include "selinux/selinux.h"
-#include "sulog/event.h"
+#include "tiny_sulog.h"
 
 #define SU_PATH "/system/bin/su"
 #define SH_PATH "/system/bin/sh"
@@ -101,7 +100,7 @@ int ksu_handle_faccessat(int *dfd, const char __user **filename_user,
 	strncpy_from_user_nofault(path, *filename_user, sizeof(path));
 
 	if (unlikely(!memcmp(path, su, sizeof(su)))) {
-		ksu_compat_sulog('a');
+		write_sulog('a');
 		pr_info("faccessat su->sh!\n");
 		*filename_user = sh_user_path();
 	}
@@ -127,7 +126,7 @@ int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags)
 	strncpy_from_user_nofault(path, *filename_user, sizeof(path));
 
 	if (unlikely(!memcmp(path, su, sizeof(su)))) {
-		ksu_compat_sulog('s');
+		write_sulog('s');
 		pr_info("newfstatat su->sh!\n");
 		*filename_user = sh_user_path();
 	}
@@ -139,8 +138,6 @@ long ksu_handle_execve_sucompat(const char __user **filename_user, int orig_nr, 
 {
 	const char su[] = SU_PATH;
 	const char __user *fn;
-	const char __user *const __user *argv_user = (const char __user *const __user *)PT_REGS_PARM2(regs);
-	struct ksu_sulog_pending_event *pending_sucompat = NULL;
 	char path[sizeof(su) + 1];
 	long ret;
 	unsigned long addr;
@@ -169,16 +166,14 @@ long ksu_handle_execve_sucompat(const char __user **filename_user, int orig_nr, 
 	if (likely(memcmp(path, su, sizeof(su))))
 		goto do_orig_execve;
 
-	ksu_compat_sulog('x');
+    write_sulog('x');
 
     pr_info("sys_execve su found\n");
-	pending_sucompat = ksu_sulog_capture_sucompat(*filename_user, argv_user, GFP_KERNEL);
     *filename_user = ksud_user_path();
 
 	ret = escape_with_root_profile();
 	if (ret) {
 		pr_err("escape_with_root_profile failed: %ld\n", ret);
-		ksu_sulog_emit_pending(pending_sucompat, ret, GFP_KERNEL);
 		goto do_orig_execve;
 	}
 	if (preempt_count() > 0) {
@@ -187,11 +182,9 @@ long ksu_handle_execve_sucompat(const char __user **filename_user, int orig_nr, 
 		struct file *f = ksu_filp_open_compat(KSUD_PATH, O_RDONLY, 0);
 		if (IS_ERR(f)) {
 			pr_warn("ksud inaccesible, aplicando fallback a sh\n");
-			ksu_sulog_emit_pending(pending_sucompat, ret, GFP_KERNEL);
 			*filename_user = sh_user_path();
 		} else {
 			filp_close(f, NULL);
-			ksu_sulog_emit_pending(pending_sucompat, ret, GFP_KERNEL);
 			*filename_user = ksud_user_path();
 		}
 	}

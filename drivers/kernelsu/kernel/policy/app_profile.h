@@ -3,8 +3,6 @@
 
 #include "uapi/app_profile.h" // IWYU pragma: keep
 
-#define TIF_KSU_DISABLE_ESCAPE_WITH_ROOT 63
-
 // Escalate current process to root with the appropriate profile
 int escape_with_root_profile(void);
 

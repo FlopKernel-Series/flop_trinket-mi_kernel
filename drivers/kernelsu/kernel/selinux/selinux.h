@@ -47,6 +47,11 @@ bool getenforce();
 
 void cache_sid(void);
 
+void ksu_selinux_hide_status_init(void);
+void ksu_selinux_hide_status_exit(void);
+void ksu_selinux_hide_status_handle_second_stage(void);
+void ksu_selinux_hide_status_handle_post_fs_data(void);
+
 bool is_task_ksu_domain(const struct cred* cred);
 
 bool is_ksu_domain();
@@ -60,8 +65,6 @@ void apply_kernelsu_rules();
 int handle_sepolicy(void __user *user_data, u64 data_len);
 
 void setup_ksu_cred();
-
-void escape_to_root_for_adb_root();
 
 extern u32 ksu_file_sid;
 

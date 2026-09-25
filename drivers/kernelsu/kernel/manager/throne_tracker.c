@@ -312,8 +312,7 @@ static bool do_track_throne_core(bool prune_only)
 			break;
 		}
 		data->uid = res;
-		memcpy(data->package, package, KSU_MAX_PACKAGE_NAME - 1);
-		data->package[KSU_MAX_PACKAGE_NAME - 1] = '\0';
+		strncpy(data->package, package, KSU_MAX_PACKAGE_NAME);
 		list_add_tail(&data->list, &uid_list);
 		// reset line start
 		line_start = pos;
