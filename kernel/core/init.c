@@ -17,11 +17,11 @@
 #include "runtime/ksud_boot.h"
 #include "supercall/supercall.h"
 #include "ksu.h"
+#include "feature/sulog.h"
 #include "infra/file_wrapper.h"
-#ifdef CONFIG_KSU_SUSFS
-#include <linux/susfs.h>
-#endif // #ifdef CONFIG_KSU_SUSFS
 #include "selinux/selinux.h"
+#include "feature/selinux_hide.h"
+#include "feature/adb_root.h"
 
 extern void __init ksu_lsm_hook_init(void);
 extern int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,
@@ -76,6 +76,21 @@ __attribute__((naked)) int __init kernelsu_init_early(void)
 struct cred *ksu_cred;
 bool ksu_late_loaded;
 
+#ifdef CONFIG_KSU_DEBUG
+bool allow_shell = true;
+#else
+bool allow_shell = false;
+#endif
+module_param(allow_shell, bool, 0);
+
+bool ksu_no_custom_rc = false;
+module_param_named(norc, ksu_no_custom_rc, bool, 0);
+
+#ifdef MODULE
+bool ksu_bundled = false;
+module_param_named(bundled, ksu_bundled, bool, 0);
+#endif
+
 int __init kernelsu_init(void)
 {
 #ifdef MODULE
@@ -94,16 +109,29 @@ int __init kernelsu_init(void)
 	pr_alert("*************************************************************");
 #endif
 
+	if (allow_shell) {
+		pr_alert("shell is allowed at init!");
+	}
+
     ksu_cred = prepare_creds();
     if (!ksu_cred) {
         pr_err("prepare cred failed!\n");
+        return -ENOSYS;
     }
 
 	ksu_feature_init();
 
+	ksu_sulog_init();
+
+	ksu_adb_root_init();
+
+	ksu_lsm_hook_init();
+
+	ksu_selinux_hide_init();
+
 	ksu_supercalls_init();
 
-	
+	ksu_app_profile_init();
 
 	if (ksu_late_loaded) {
 		pr_info("late load mode, skipping kprobe hooks\n");
@@ -136,16 +164,10 @@ int __init kernelsu_init(void)
 
 	} else {
 		ksu_syscall_hook_manager_init();
-		
-		ksu_lsm_hook_init();
 
 		ksu_allowlist_init();
 
 		ksu_throne_tracker_init();
-
-#ifdef CONFIG_KSU_SUSFS
-    	susfs_init();
-#endif // #ifdef CONFIG_KSU_SUSFS
 
 		ksu_ksud_init();
 
@@ -179,6 +201,12 @@ void __exit kernelsu_exit(void)
 	ksu_throne_tracker_exit();
 
 	ksu_allowlist_exit();
+
+	ksu_selinux_hide_exit();
+
+	ksu_sulog_exit();
+
+	ksu_adb_root_exit();
 
 	ksu_feature_exit();
 
