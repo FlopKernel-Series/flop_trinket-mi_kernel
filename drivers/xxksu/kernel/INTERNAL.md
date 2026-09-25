@@ -2,7 +2,7 @@
 ## C-style
 - GNU23, but written in a way compatible to GNU17/GNU11 compilers.
 - pointer-heavy. assumes little endian on everything.
-- some metaprogramming is actually happening (redefines, compat hacks, backports)
+- metaprogramming is actually happening (overloading, templates, redefines, compat, backports)
 - plethora of compiler attributes / builtins, this is intended.
 - minimum is GCC 4.9 / Clang 10
 
