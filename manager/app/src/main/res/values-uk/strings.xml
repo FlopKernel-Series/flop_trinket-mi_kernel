@@ -175,7 +175,6 @@
     <string name="flashing">Прошивка</string>
     <string name="flash_success">Прошивка успішна</string>
     <string name="flash_failed">Прошивка не вдалася</string>
-    <string name="selected_lkm">Обраний LKM: %s</string>
     <string name="save_log">Зберегти логи</string>
     <string name="log_saved">Логи збережено</string>
     <string name="unknown_module">невідомий модуль</string>
@@ -541,4 +540,6 @@
     <string name="sort_size">Розмір</string>
     <string name="reverse_order">Зворотний порядок</string>
     <string name="sort_name">Ім\'я</string>
+    <string name="enable_floating_bottom_bar">Плаваюча нижня панель</string>
+    <string name="enable_floating_bottom_bar_summary">Використовувати плаваючу нижню панель у стилі Apple.</string>
 </resources>

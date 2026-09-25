@@ -74,7 +74,7 @@ sealed interface Route : NavKey, Parcelable {
     @Parcelize
     @Serializable
     data class Flash(
-        val type: String,
+        val flashType: String,
         val uris: List<String> = emptyList(),
         val currentIndex: Int = 0,
         val bootUri: String? = null,
@@ -82,6 +82,9 @@ sealed interface Route : NavKey, Parcelable {
         val kmi: String? = null,
         val ota: Boolean = false,
         val partition: String? = null,
+        val allowShell: Boolean = false,
+        val enableAdb: Boolean = false,
+        val forceBackup: Boolean = false,
     ) : Route {
         companion object {
             const val TYPE_BOOT = "boot"
@@ -97,13 +100,19 @@ sealed interface Route : NavKey, Parcelable {
                 kmi: String?,
                 ota: Boolean,
                 partition: String?,
+                allowShell: Boolean = false,
+                enableAdb: Boolean = false,
+                forceBackup: Boolean = false,
             ) = Flash(
-                type = TYPE_BOOT,
+                flashType = TYPE_BOOT,
                 bootUri = bootUri,
                 lkmUri = lkmUri,
                 kmi = kmi,
                 ota = ota,
                 partition = partition,
+                allowShell = allowShell,
+                enableAdb = enableAdb,
+                forceBackup = forceBackup,
             )
 
             fun module(uri: String) = Flash(TYPE_MODULE, uris = listOf(uri))
@@ -140,6 +149,7 @@ sealed interface Route : NavKey, Parcelable {
     @Serializable
     data class KernelFlash(
         val kernelUri: String,
-        val selectedSlot: String?
+        val selectedSlot: String?,
+        val skipKsud: Boolean = false,
     ) : Route
 }
