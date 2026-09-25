@@ -9,7 +9,7 @@
 
 static bool ksu_su_compat_enabled __read_mostly = true;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
 static void __user *userspace_stack_buffer(const void *d, size_t len)
 {
 	// To avoid having to mmap a page in userspace, just write below the stack
@@ -313,6 +313,7 @@ static __always_inline void ksu_sucompat_kernel_common(int *restrict fd, void **
 	constexpr char su[16] = SU_PATH;
 
 #if 0 // defined(KSU_HAS_INT128)
+// https://godbolt.org/z/j8Yovv6bE
 	uint128_t *su128 = (uint128_t *)su;
 	uint128_t *fn128 = (uint128_t *)*(char **)filename_ptr;
 	const uint128_t mask = make128const(0x00FFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL);

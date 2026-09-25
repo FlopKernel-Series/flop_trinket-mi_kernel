@@ -49,10 +49,10 @@ static inline void ksu_selinux_hide_alloc_hazptr_slot(void)
 		__builtin_unreachable();
 	}
 
-	int cpu;
+	unsigned int cpu;
 	for_each_possible_cpu(cpu) {
 		struct ksu_hide_buf **slot = per_cpu_ptr(ksu_selinux_hide_hazptr_slot, cpu);
-		pr_info("selinux_hide: hazptr_slot: 0x%llx cpu: %d \n", (uintptr_t)slot, cpu );
+		pr_info("selinux_hide: hazptr_slot: 0x%lx cpu: %u \n", (uintptr_t)slot, cpu );
 	}
 }
 
@@ -89,7 +89,7 @@ static inline void ksu_selinux_hide_hazptr_free(struct ksu_hide_buf *old_ptr)
 
 	// acquire it on ALL cpus!
 	// only free it once ALL slots say that their slot no longer contains old ptr
-	int cpu;
+	unsigned int cpu;
 	for_each_possible_cpu(cpu) {
 		struct ksu_hide_buf **slot = per_cpu_ptr(ksu_selinux_hide_hazptr_slot, cpu);
 		while (__atomic_load_n(slot, __ATOMIC_ACQUIRE) == old_ptr)
@@ -130,8 +130,7 @@ static noinline void ksu_add_shit_to_list(u32 cmd, const char *args[])
 			offset = offset + strlen(current_type) + 1;
 		}
 
-	skip_type_dup_check:
-		;
+	skip_type_dup_check:;
 		size_t old_len = (ksu_hide_type_list) ? ksu_hide_type_list->len : 0;
 		size_t new_total_len = old_len + needed_len;
 
@@ -184,8 +183,7 @@ static noinline void ksu_add_shit_to_list(u32 cmd, const char *args[])
 			offset = offset + src_sz + tgt_sz;
 		}
 
-	skip_rule_dup_check:
-		;
+	skip_rule_dup_check:;
 		size_t old_len = (ksu_hide_rule_list) ? ksu_hide_rule_list->len : 0;
 		size_t new_total_len = old_len + needed_len;
 
