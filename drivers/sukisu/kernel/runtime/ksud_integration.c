@@ -109,6 +109,10 @@ static void stop_execve_hook(void);
     #define ksu_init_rc_hook_inactive() (!static_branch_likely(&ksu_is_init_rc_hook_enabled))
     #define ksu_input_hook_inactive() (!static_branch_likely(&ksu_is_input_hook_enabled))
 
+#ifdef CONFIG_KSU_MANUAL_HOOK_AUTO_INPUT_HOOK
+    static void vol_detector_exit();
+#endif
+
     static void stop_init_rc_hook(void)
     {
         if (static_key_enabled(&ksu_is_init_rc_hook_enabled))
@@ -120,6 +124,9 @@ static void stop_execve_hook(void);
     {
         if (static_key_enabled(&ksu_is_input_hook_enabled))
             static_branch_disable(&ksu_is_input_hook_enabled);
+#ifdef CONFIG_KSU_MANUAL_HOOK_AUTO_INPUT_HOOK
+        vol_detector_exit();
+#endif
     }
 
 #elif defined(CONFIG_KSU_MANUAL_HOOK)
@@ -822,6 +829,9 @@ int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *v
 #ifdef CONFIG_KSU_MANUAL_HOOK_AUTO_INPUT_HOOK
 static void vol_detector_event(struct input_handle *handle, unsigned int type, unsigned int code, int value)
 {
+    if (ksu_input_hook_inactive())
+        return;
+
     if (!value)
         return;
 
