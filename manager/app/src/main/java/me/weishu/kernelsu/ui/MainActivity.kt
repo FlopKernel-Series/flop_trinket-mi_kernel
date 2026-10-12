@@ -185,6 +185,8 @@ class MainActivity : ComponentActivity() {
                     } else {
                         NavSwipeDirection.None
                     }
+                    val flashRoute = navigator.current() as? Route.Flash
+                    var flashBackEnabled by remember(flashRoute) { mutableStateOf(false) }
                     val mainScreenEntry = @Composable {
                         MainScreen(
                             initialPage = selectedMainPage,
@@ -220,7 +222,14 @@ class MainActivity : ComponentActivity() {
                             entry<Route.ModuleRepo>(swipeDismiss = swipeDismiss) { ModuleRepoScreen() }
                             entry<Route.ModuleRepoDetail>(swipeDismiss = swipeDismiss) { key -> ModuleRepoDetailScreen(key.module) }
                             entry<Route.Install>(swipeDismiss = swipeDismiss) { InstallScreen() }
-                            entry<Route.Flash>(swipeDismiss = swipeDismiss) { key -> FlashScreen(key.flashIt) }
+                            entry<Route.Flash>(swipeDismiss = if (flashBackEnabled) swipeDismiss else NavSwipeDirection.None) { key ->
+                                FlashScreen(
+                                    key.flashIt,
+                                    onBackEnabledChange = { enabled ->
+                                        if (navigator.current() == key) flashBackEnabled = enabled
+                                    },
+                                )
+                            }
                             entry<Route.ExecuteModuleAction>(swipeDismiss = swipeDismiss) { key ->
                                 ExecuteModuleActionScreen(
                                     key.moduleId,

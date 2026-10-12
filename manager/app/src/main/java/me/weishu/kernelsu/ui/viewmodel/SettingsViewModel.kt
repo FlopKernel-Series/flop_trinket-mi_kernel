@@ -56,16 +56,36 @@ class SettingsViewModel(
             val suCompatPersistValue = repo.getSuCompatPersistValue()
             val isSuEnabled = repo.isSuEnabled()
 
-            val suCompatMode = if (suCompatPersistValue == 0L) 2 else if (!isSuEnabled) 1 else 0
+            // Forced features show the value in effect, the persisted one is ignored
+            val suCompatMode = when {
+                suCompatStatus == "forced" -> if (isSuEnabled) 0 else 2
+                suCompatPersistValue == 0L -> 2
+                !isSuEnabled -> 1
+                else -> 0
+            }
 
             val kernelUmountStatus = repo.getKernelUmountStatus()
             val isKernelUmountEnabled = repo.isKernelUmountEnabled()
             val selinuxHideStatus = repo.getSelinuxHideStatus()
             val isSelinuxHideEnabled = repo.isSelinuxHideEnabled()
             val sulogStatus = repo.getSulogStatus()
-            val isSulogEnabled = repo.getSulogPersistValue() == 1L
+            val isSulogEnabled = if (sulogStatus == "forced") {
+                repo.getSulogValue() == 1L
+            } else {
+                repo.getSulogPersistValue() == 1L
+            }
             val adbRootStatus = repo.getAdbRootStatus()
-            val isAdbRootEnabled = repo.getAdbRootPersistValue() == 1L
+            val isAdbRootEnabled = if (adbRootStatus == "forced") {
+                repo.getAdbRootValue() == 1L
+            } else {
+                repo.getAdbRootPersistValue() == 1L
+            }
+            val shellSuAdbOnlyStatus = repo.getShellSuAdbOnlyStatus()
+            val isShellSuAdbOnlyEnabled = if (shellSuAdbOnlyStatus == "forced") {
+                repo.getShellSuAdbOnlyValue() == 1L
+            } else {
+                repo.getShellSuAdbOnlyPersistValue() == 1L
+            }
             val isDefaultUmountModules = repo.isDefaultUmountModules()
             val uiMode = repo.uiMode
             val autoJailbreak = repo.autoJailbreak
@@ -97,6 +117,8 @@ class SettingsViewModel(
                     isSuEnabled = isSuEnabled,
                     adbRootStatus = adbRootStatus,
                     isAdbRootEnabled = isAdbRootEnabled,
+                    shellSuAdbOnlyStatus = shellSuAdbOnlyStatus,
+                    isShellSuAdbOnlyEnabled = isShellSuAdbOnlyEnabled,
                     kernelUmountStatus = kernelUmountStatus,
                     isKernelUmountEnabled = isKernelUmountEnabled,
                     selinuxHideStatus = selinuxHideStatus,
@@ -322,6 +344,15 @@ class SettingsViewModel(
             if (repo.setSulogEnabled(enabled)) {
                 repo.execKsudFeatureSave()
                 _uiState.update { it.copy(isSulogEnabled = enabled) }
+            }
+        }
+    }
+
+    fun setShellSuAdbOnlyEnabled(enabled: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            if (repo.setShellSuAdbOnlyEnabled(enabled)) {
+                repo.execKsudFeatureSave()
+                _uiState.update { it.copy(isShellSuAdbOnlyEnabled = enabled) }
             }
         }
     }
