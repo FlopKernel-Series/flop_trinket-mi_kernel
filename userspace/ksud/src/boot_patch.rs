@@ -522,13 +522,20 @@ pub struct KsuConfigArgs {
     #[arg(long, default_value = "false")]
     no_custom_rc: bool,
 
+    /// Do not run module preinit actions
+    #[arg(long, default_value = "false")]
+    no_preinit: bool,
+
     /// Force a kernel feature to a value at boot, e.g. `su_compat=0`.
     /// Forced features can not be changed or loaded by userspace. Can be repeated.
     #[arg(long, value_name = "FEATURE=VALUE", value_parser = parse_force_feature)]
     force_feature: Vec<(FeatureId, u64)>,
 
-    /// Block a kernel module from loading at boot by name, e.g.
+    /// [Developer only] Block a kernel module from loading at boot by name, e.g.
     /// `oplus_secure_guard`. Comma-separated and/or repeated. Omitting clears it.
+    /// Blocked modules fail to load with EPERM; blocking one that first stage
+    /// init loads (modules.load / modules.load.recovery) or that others depend
+    /// on can bootloop the device. You are on your own.
     #[arg(long = "block-module", value_name = "NAME", value_delimiter = ',', value_parser = parse_block_module)]
     block_module: Vec<String>,
 }
@@ -557,6 +564,7 @@ impl KsuConfigArgs {
     pub fn apply(&self, config: &mut Vec<String>) {
         set_config_flag(config, "no custom rc", "norc=1", self.no_custom_rc);
         set_config_flag(config, "allow shell", "allow_shell=1", self.allow_shell);
+        set_config_flag(config, "no preinit", "preinit=0", self.no_preinit);
 
         config.retain(|v| !v.starts_with("force_feature="));
         if !self.force_feature.is_empty() {

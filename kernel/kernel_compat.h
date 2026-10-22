@@ -43,14 +43,21 @@ __weak void kick_all_cpus_sync(void)
 }
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)
+#define memzero_explicit(ptr, count) memset_explicit(ptr, 0, count)
+#endif
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
-static void *ksu_kvmalloc(size_t size, gfp_t flags)
+static void *ksu_kvmalloc(size_t bytes, gfp_t flags)
 {
-	void *buf = kmalloc(size, flags);
-	if (!buf)
-		buf = vmalloc(size);
-	
-	return buf;
+	void *p = kmalloc(bytes, flags);
+	if (p)
+		return p;
+
+	if (flags & __GFP_ZERO)
+		return vzalloc(bytes);
+
+	return vmalloc(bytes);
 }
 #define kvmalloc ksu_kvmalloc
 
@@ -62,6 +69,18 @@ static void ksu_kvfree(const void *buf)
 		kfree(buf);
 }
 #define kvfree ksu_kvfree
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 18, 0)
+static void *ksu_kvcalloc(size_t n, size_t size, gfp_t flags)
+{
+	size_t bytes;
+	if (check_mul_overflow(n, size, &bytes))
+		return nullptr;
+
+	return kvmalloc(bytes, flags | __GFP_ZERO);
+}
+#define kvcalloc ksu_kvcalloc
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0) // probe_kernel_read
@@ -140,11 +159,6 @@ static __always_inline long memmove_user(void __user *dst, const void __user *sr
 	return 0;
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)
-static inline void ksu_memzero_explicit(void *s, size_t count) { memset_explicit(s, 0, count); }
-#define memzero_explicit ksu_memzero_explicit
-#endif
-
 #ifdef TIF_SECCOMP
 #define ksu_is_seccomp_enabled() test_thread_flag(TIF_SECCOMP)
 #else
@@ -182,16 +196,26 @@ static noinline ssize_t ksu_kernel_write_compat(struct file *file, const void *b
 #define TWA_RESUME 1
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 4, 0)
+// https://elixir.bootlin.com/linux/v3.4/source/include/linux/kconfig.h
+#define __ARG_PLACEHOLDER_1 0,
+#define config_enabled(cfg) _config_enabled(cfg)
+#define _config_enabled(value) __config_enabled(__ARG_PLACEHOLDER_##value)
+#define __config_enabled(arg1_or_junk) ___config_enabled(arg1_or_junk 1, 0)
+#define ___config_enabled(__ignored, val, ...) val
+#define IS_ENABLED(option) config_enabled(option)
+#endif
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 6, 0)
 static __nocfi struct file *ksu_dentry_open(const struct path *path, int flags, const struct cred *cred)
 {
 	// new type: struct file * dentry_open(const struct path *, int, const struct cred *);
 	extern typeof(dentry_open) dentry_open;
-	assume((void *)&dentry_open != nullptr);
 	if (!__builtin_types_compatible_p(typeof(dentry_open), typeof(ksu_dentry_open)))
 		goto old_fn;
 
-	return ((typeof(ksu_dentry_open) *)&dentry_open)(path, flags, cred);
+	typeof(ksu_dentry_open) *fn_new = (void *)&dentry_open;
+	return fn_new(path, flags, cred);
 
 old_fn:; // old type: struct file * dentry_open(struct dentry *, struct vfsmount *, int, const struct cred *);
 	struct file *(*fn_old)(struct dentry *, struct vfsmount *, int, const struct cred *) = (void *)&dentry_open;
@@ -199,7 +223,7 @@ old_fn:; // old type: struct file * dentry_open(struct dentry *, struct vfsmount
 	 * old dentry_open consumes a reference regardless of failure or success (dput/mntput)
 	 * we have take one before calling it, else it releases caller's reference. see nameidata_to_filp
 	 */
-	path_get(path); 
+	path_get((struct path *)path); // unqual
 	return fn_old((*path).dentry, (*path).mnt, flags, cred);
 }
 #define dentry_open ksu_dentry_open
@@ -251,19 +275,38 @@ static inline void ksu_static_key_disable(struct static_key *key)
 		static_key_slow_dec(key);
 }
 
-#define static_branch_enable(k)		ksu_static_key_enable(k)
-#define static_branch_disable(k)	ksu_static_key_disable(k)
+static inline int ksu_static_key_count(struct static_key *key)
+{
+	return atomic_read(&key->enabled);
+}
 
-#define static_branch_unlikely(k)	static_key_false(k)
-#define static_branch_likely(k)		static_key_true(k)
+struct ksu_static_key_true_false { struct static_key key; };
 
 #ifdef CC_HAVE_ASM_GOTO
-#define DEFINE_STATIC_KEY_TRUE(k)	struct static_key k = { .enabled = ATOMIC_INIT(1), .entries = (void *)1 }
-#define DEFINE_STATIC_KEY_FALSE(k)	struct static_key k = { .enabled = ATOMIC_INIT(0), .entries = (void *)0 }
+#define KSU_STATIC_KEY_TRUE_INIT	{ .key = { .enabled = ATOMIC_INIT(1), .entries = (void *)1 } }
+#define KSU_STATIC_KEY_FALSE_INIT	{ .key = { .enabled = ATOMIC_INIT(0), .entries = (void *)0 } }
 #else
-#define DEFINE_STATIC_KEY_TRUE(k)	struct static_key k = { .enabled = ATOMIC_INIT(1) }
-#define DEFINE_STATIC_KEY_FALSE(k)	struct static_key k = { .enabled = ATOMIC_INIT(0) }
+#define KSU_STATIC_KEY_TRUE_INIT	{ .key = { .enabled = ATOMIC_INIT(1) } }
+#define KSU_STATIC_KEY_FALSE_INIT	{ .key = { .enabled = ATOMIC_INIT(0) } }
 #endif
+
+#define DEFINE_STATIC_KEY_TRUE(name)	struct ksu_static_key_true_false name = KSU_STATIC_KEY_TRUE_INIT
+#define DEFINE_STATIC_KEY_FALSE(name)	struct ksu_static_key_true_false name = KSU_STATIC_KEY_FALSE_INIT
+
+#define static_key_enable(x)		ksu_static_key_enable(x)
+#define static_key_disable(x)		ksu_static_key_disable(x)
+
+#define static_branch_enable(x)		ksu_static_key_enable(&(x)->key)
+#define static_branch_disable(x)	ksu_static_key_disable(&(x)->key)
+
+#define static_branch_inc(x)		ksu_static_key_enable(&(x)->key)
+#define static_branch_dec(x)		ksu_static_key_disable(&(x)->key)
+
+#define static_branch_unlikely(x)	static_key_false(&(x)->key)
+#define static_branch_likely(x)		static_key_true(&(x)->key)
+
+// NOTE: on 4.4+ this is overloaded, but no big deal, that struct's first member is the key
+#define static_key_enabled(x)		({ ksu_static_key_count((struct static_key *)x) > 0; })
 
 #endif // < 4.3
 #endif // >= 3.4 && CONFIG_JUMP_LABEL
@@ -318,9 +361,8 @@ static ssize_t ksu_strscpy(char *dest, const char *src, size_t count)
 	if (!end)
 		goto no_null_term;
 
-	size_t copy_len = end - src;
+	size_t copy_len = end - src + 1; // +1 to copy \0
 	__builtin_memcpy(dest, src, copy_len);
-	dest[copy_len] = '\0';
 	return copy_len;
 
 no_null_term:
@@ -479,7 +521,6 @@ static __nocfi struct user_struct *ksu_alloc_uid(uid_t uid)
 	// old: struct user_struct *alloc_uid(struct user_namespace *ns, uid_t uid)
 	// new: struct user_struct *alloc_uid(kuid_t uid)
 	extern typeof(alloc_uid) alloc_uid;
-	assume((void *)&alloc_uid != nullptr);
 	if (!__builtin_types_compatible_p(typeof(alloc_uid), struct user_struct *(struct user_namespace *, uid_t)))
 		goto new_fn;
 
@@ -532,7 +573,7 @@ static void ksu_grab_init_session_keyring()
 
 	init_session_keyring = key_ref_to_ptr(key_ref);
 
-	pr_info("%s: init_session_keyring: 0x%lx \n", __func__, (uintptr_t)init_session_keyring);
+	pr_info("init_session_keyring: 0x%lx \n", (uintptr_t)init_session_keyring);
 	install_session_keyring_to_cred(ksu_cred, init_session_keyring);
 }
 #else
