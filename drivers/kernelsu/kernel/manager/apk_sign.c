@@ -188,9 +188,13 @@ static __always_inline bool check_v2_signature(char *path,
 			pr_err("error: cannot allocate memory for eocd\n");
 			goto clean;
 		}
+		memset(eocd_buffer, 0, search_size);
 
 		pos = file_size - search_size;
-		kernel_read(fp, eocd_buffer, search_size, &pos);
+		if (kernel_read(fp, eocd_buffer, search_size, &pos) != search_size) {
+			kvfree(eocd_buffer);
+			goto clean;
+		}
 
 		if (search_size >= eocd_min_size) {
 			long j;
