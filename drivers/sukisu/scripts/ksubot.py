@@ -15,33 +15,51 @@ TITLE = os.environ.get("TITLE")
 VERSION = os.environ.get("VERSION")
 BRANCH = os.environ.get("BRANCH")
 
+API_ID = 21724
+API_HASH = "3e0cb5efcd52300aec5994fdfc5bdc16"
+
 GITHUB_EVENT = json.loads(open(os.environ.get("GITHUB_EVENT_PATH"), "r").read())
 GITHUB_REF_TYPE = os.environ.get("GITHUB_REF_TYPE")
 
 commit_message = ''
 commit_line = ''
+
+def format_commit_messages(commits, max_length=600):
+    formatted_commits = []
+    commits_to_show = commits[::-1]
+
+    for index, commit in enumerate(commits_to_show):
+        message = commit['message'].strip()
+        if len(message) > 200:
+            message = message[:197] + '...'
+        message += ' by ' + commit['author']['username']
+
+        remaining = len(commits_to_show) - index - 1
+        candidate_commits = formatted_commits + [message]
+        candidate_message = '\n------\n'.join(candidate_commits)
+        if remaining:
+            candidate_message += f'\n(other {remaining} commits)'
+
+        if len(candidate_message) > max_length:
+            omitted_count = len(commits_to_show) - index
+            omitted_message = f'(other {omitted_count} commits)'
+            commit_message = '\n------\n'.join(formatted_commits)
+            if commit_message:
+                commit_message += '\n'
+            return commit_message + omitted_message
+
+        formatted_commits.append(message)
+
+    return '\n------\n'.join(formatted_commits)
+
 try:
     if 'commits' in GITHUB_EVENT:
         commits = GITHUB_EVENT['commits']
-        commit_message = ''
-        i = len(commits)
-        for commit in commits[::-1]:
-            msg_line = commit['message'].split('\n')
-            msg = commit['message'].strip()
-            msg += ' by ' + commit['author']['username']
-            if len(msg) + 1 + len(commit_message) > 3192:
-                commit_message = f'(other {i} commits)\n{commit_message}'
-                break
-            else:
-                commit_message = f'{msg}\n{commit_message}\n'
-            i -= 1
-        commit_message = f'{commit_message.strip()}'
-        last_commit = commits[-1]
-
+        commit_message = format_commit_messages(commits)
     elif 'head_commit' in GITHUB_EVENT:
         msg = GITHUB_EVENT["head_commit"]["message"]
-        if len(msg) > 3192:
-            msg = msg[:3189] + '...'
+        if len(msg) > 200:
+            msg = msg[:197] + '...'
         commit_message = f'{msg.strip()}'
     else:
         commit_message = f'(no commit message)'
@@ -50,8 +68,8 @@ except IndexError:
     try:
         if 'head_commit' in GITHUB_EVENT:
             msg = GITHUB_EVENT["head_commit"]["message"]
-            if len(msg) > 3192:
-                msg = msg[:3189] + '...'
+            if len(msg) > 200:
+                msg = msg[:197] + '...'
             commit_message = f'{msg.strip()}'
     except:
         from traceback import print_exc
@@ -80,8 +98,9 @@ Branch: {branch}
 </pre>
 {commit_line}
 <a href="{run_url}">Workflow run</a>
-<a href="https://nightly.link/ReSukiSU/ReSukiSU/workflows/build-manager/main/Manager-debug.zip">Get latest main Debug build</a>
+<a href="https://nightly.link/Baka-SU/BakaSU/workflows/build-manager/main/Manager-debug.zip">Get latest main Debug build</a>
 """.strip()
+
 MAIN_UPDATED_MSG ="""
 main branch updated, manager in there may outdated 
 main 分支已更新，此 topic 的管理器可能已过时
@@ -89,6 +108,36 @@ main 分支已更新，此 topic 的管理器可能已过时
 
 def escape_telegram_html(text: str) -> str:
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;").replace("'", "&#39;")
+
+async def start_bot_api():
+    print("[+] Starting Telegram Bot API")
+    import subprocess
+    global process
+    process = subprocess.Popen(["./telegram-bot-api-binary", f"--api-id={API_ID}", f"--api-hash={API_HASH}", "--local"])
+    
+
+async def wait_for_bot_api():
+    import httpx
+    await start_bot_api()
+    print("[+] Waiting for Telegram Bot API to start...")
+    async with httpx.AsyncClient() as client:
+        for count in range(30):
+            try:
+                response = await client.get(f"http://127.0.0.1:8081/bot{BOT_TOKEN}/getMe")
+                if response.status_code < 500:
+                    print("[+] Telegram Bot API started")
+                    break
+            except:
+                #print(process.stdout.readline())
+                print("Still wait..." + str(count))
+                await asyncio.sleep(1)
+                pass
+        else:
+            process.kill()
+            print("[-] Failed to start Telegram Bot API")
+            exit(1)
+        return 
+        
 
 def get_caption():
     msg = MSG_TEMPLATE.format(
@@ -187,6 +236,7 @@ async def send_media_group(bot: Bot, chat_id: int, media: list, message_thread_i
 async def main():
     print("[+] Uploading to telegram")
     check_environ()
+    await wait_for_bot_api()
     files = sys.argv[1:]
     print("[+] Files:", files)
     if len(files) <= 0:
@@ -194,7 +244,7 @@ async def main():
         exit(1)
     print("[+] Logging in Telegram with bot")
     no_caption=False
-    bot = Bot(token=BOT_TOKEN)
+    bot = Bot(token=BOT_TOKEN,base_url="http://127.0.0.1:8081/bot",base_file_url="http://127.0.0.1:8081/file/bot")
     caption = get_caption()
     caption_debug = get_caption_for_debug()
     if len(caption) > 1024 or len(caption_debug) > 1024:
@@ -234,3 +284,8 @@ if __name__ == "__main__":
         asyncio.run(main())
     except Exception as e:
         print(f"[-] An error occurred: {e}")
+    finally:
+        try:
+            process.kill()
+        except:
+            pass

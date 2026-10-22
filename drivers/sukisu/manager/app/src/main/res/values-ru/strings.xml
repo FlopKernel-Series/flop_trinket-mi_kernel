@@ -284,7 +284,6 @@
     <string name="warning_of_meta_module_title">Требуется мета-модуль</string>
     <string name="warning_of_meta_module_summary">Этот модуль пытается смонтировать /system, что обрабатывается мета-модулем. Без него модуль может не работать</string>
     <string name="sort_usage_freq">Частота использования</string>
-    <string name="no_apps_in_category">В этой категории нет приложений</string>
     <string name="persistent">Постоянный</string>
     <string name="temporary">Временный</string>
     <string name="susfs_config_title">Конфигурация SuSFS</string>
@@ -328,7 +327,7 @@
     <string name="confirm_installation">Подтвердите установку</string>
     <string name="confirm_multiple_installation">Подтвердите установку (%d файлов)</string>
     <string name="install_confirm">Установить</string>
-    <string name="module_package">Модули</string>
+    <string name="module_package">Модуль</string>
     <string name="kernel_package">Ядро</string>
     <string name="unknown_package">Неизвестно</string>
     <string name="unknown_kernel">Неизвестное ядро</string>
@@ -527,7 +526,6 @@
     <string name="susfs_enable_config">Менеджер SuSFS</string>
     <string name="susfs_enable_config_summary">Включите встроенный менеджер SuSFS. Может конфликтовать со сторонними модулями.</string>
     <string name="susfs_config_disable_warning">Встроенный менеджер SuSFS отключен. Включите его или установите сторонний модуль для использования функций SuSFS.</string>
-    <string name="about_anime_character_sticker"><![CDATA[Иконки лицензированы по специальному соглашению: нарисованы 恰子日日, авторские права принадлежат 明风OuO, а векторные иконки предоставлены этим проектом]]></string>
     <string name="require_manager_version">Требуется обновление менеджера</string>
     <string name="require_kernel_version">Требуется обновление ядра. Нажмите, чтобы установить.</string>
     <string name="require_kernel_version_gki">Требуется обновление ядра</string>
@@ -542,4 +540,29 @@
     <string name="reverse_order">Обратный порядок</string>
     <string name="enable_floating_bottom_bar">Плавающая нижняя панель</string>
     <string name="enable_floating_bottom_bar_summary">Использовать Apple-стиль для плавающей нижней панели</string>
+    <string name="settings_soft_reboot">Мягкая перезагрузка вместо полной перезагрузки</string>
+    <string name="settings_soft_reboot_summary">Используйте мягкую перезагрузку вместо полной перезагрузки при установке, обновлении или переключении модулей</string>
+    <string name="advanced_options">Расширенные опции</string>
+    <string name="allow_shell">Всегда разрешать рут-доступ оболочке (Shell)</string>
+    <string name="allow_shell_summary">Всегда разрешать adb shell вызывать команду SU. Не включайте это без крайней необходимости.</string>
+    <string name="enable_adb">Принудительно включить ADB при загрузке</string>
+    <string name="enable_adb_summary">Принудительно включить отладку по USB и отключить аутентификацию adb. Не включайте это без крайней необходимости.</string>
+    <string name="install_force_backup">Резервная копия стокового образа</string>
+    <string name="install_force_backup_summary">Пожалуйста, убедитесь, что выбранный вами загрузочный образ является стоковым</string>
+    <string name="ak3_select_zip">Выберите zip-файл AnyKernel3 для прошивки</string>
+    <string name="install_upload_lkm_file_summary">Использовать собственный файл .ko вместо встроенного LKM</string>
+    <string name="skip_ksud">Не устанавливать ksud</string>
+    <string name="skip_ksud_summary">Отмена установки ksud. Не включайте это, если в этом нет крайней необходимости.</string>
+    <string name="settings_enable_swipe_dismiss_summary">Свайпните от края экрана, чтобы вернуться на предыдущую страницу.</string>
+    <string name="settings_pager_gesture_mode">Режим управления жестами перелистывания</string>
+    <string name="settings_enable_swipe_dismiss">Жест свайпа назад</string>
+    <string name="settings_pager_gesture_native">По умолчанию</string>
+    <string name="settings_pager_gesture_cross_axis">Поперечная ось</string>
+    <string name="settings_pager_gesture_ios_like">Как в iOS</string>
+    <string name="about_app_icon"><![CDATA[Все права на иконки ЗАЩИЩЕНЫ, а авторские права принадлежат %1$s]]></string>
+    <string name="both_kernel_and_module_files">Входные zip-архивы содержат как AnyKernel3, так и модули</string>
+    <string name="more_than_one_kernel_file">Входные файлы содержат более одного файла AnyKernel3</string>
+    <string name="module_shortcut_copy_scheme">Копировать URL-схему</string>
+    <string name="module_shortcut_scheme_copied">URL-схема скопирована</string>
+    <string name="internal_server_error">Ошибка сервера</string>
 </resources>
