@@ -48,17 +48,20 @@ static void ksu_defer_track_throne(void)
 {
 	struct callback_head *cb;
 
-	if (!(current->flags & PF_KTHREAD)) {
-		cb = kzalloc(sizeof(*cb), GFP_KERNEL);
-		if (cb) {
-			cb->func = ksu_track_throne_tw_func;
-			if (!task_work_add(current, cb, TWA_RESUME))
-				return;
-			kfree(cb);
-		}
+	if (current->flags & PF_KTHREAD)
+		return;
+
+	cb = kzalloc(sizeof(*cb), GFP_KERNEL);
+	if (!cb) {
+		pr_warn("defer track_throne: alloc failed, skipping event\n");
+		return;
 	}
-	pr_warn("defer track_throne failed, run it inline\n");
-	track_throne(false);
+
+	cb->func = ksu_track_throne_tw_func;
+	if (task_work_add(current, cb, TWA_RESUME)) {
+		kfree(cb);
+		pr_warn("defer track_throne: task_work_add failed, skipping event\n");
+	}
 }
 
 #include "pkg_observer_defs.h" // KSU_DECL_FSNOTIFY_OPS
@@ -70,8 +73,10 @@ static KSU_DECL_FSNOTIFY_OPS(ksu_handle_inode_event)
 		return 0;
 	if (ksu_fname_len(file_name) == 13 &&
 	    !memcmp(ksu_fname_arg(file_name), "packages.list", 13)) {
-		pr_info("packages.list detected: %d\n", mask);
-		ksu_defer_track_throne();
+		if (mask & (FS_CREATE | FS_MOVED_TO)) {
+			pr_info("packages.list detected: %d\n", mask);
+			ksu_defer_track_throne();
+		}
 	}
 	/* Only /data/adb has a "ksud"; keep sucompat's view of it current. */
 	if (ksu_fname_len(file_name) == 4 &&

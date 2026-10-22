@@ -11,6 +11,7 @@
 #include <linux/rcupdate.h>
 #include <linux/sched.h>
 #include <linux/proc_fs.h>
+#include <linux/kthread.h>
 
 #include "policy/feature.h"
 #include "ksu.h"
@@ -19,8 +20,11 @@
 #include "feature/selinux_hide.h"
 #include "compat/kernel_compat.h"
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0) && \
-    LINUX_VERSION_CODE <  KERNEL_VERSION(6, 6, 0)
+#ifndef __nocfi
+#define __nocfi
+#endif
+
+#ifdef KSU_COMPAT_USE_SELINUX_STATE
 extern struct selinux_state selinux_state;
 #define KSU_HAS_SELINUX_STATE 1
 #else
