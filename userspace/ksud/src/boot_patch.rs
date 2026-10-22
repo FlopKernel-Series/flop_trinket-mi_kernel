@@ -596,7 +596,7 @@ pub fn patch(args: BootPatchArgs) -> Result<()> {
 
         let kmi = kmi.map_or_else(
             || -> Result<_> {
-                if kmod.is_some() {
+                if kmod.is_some() || (no_install && image.is_some()) {
                     return Ok(String::new());
                 }
                 #[cfg(target_os = "android")]
@@ -661,10 +661,13 @@ pub fn patch(args: BootPatchArgs) -> Result<()> {
         println!("- Parsing boot image");
 
         let boot_image_data = map_file(&boot_image_file)?;
-        let boot_image = if ramdisk {
-            BootImage::parse_raw_ramdisk(&boot_image_data)?
+        let boot_image = match if ramdisk {
+            BootImage::parse_raw_ramdisk(&boot_image_data)
         } else {
-            BootImage::parse(&boot_image_data)?
+            BootImage::parse(&boot_image_data)
+        } {
+            Ok(b) => b,
+            Err(e) => bail!("Failed to parse boot iamge, boot image maybe is empty, {e}"),
         };
         enforce_bootimage_version(&boot_image)?;
 

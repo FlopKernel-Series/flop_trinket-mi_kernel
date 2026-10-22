@@ -42,6 +42,7 @@ extern "C" fn sigsys_handler(
             SIGSYS_OCCURRED.with(|occurred| occurred.set(true));
         }
 
+        #[cfg(not(target_arch = "riscv64"))]
         let ucontext = ctx.cast::<libc::ucontext_t>();
         #[cfg(target_arch = "aarch64")]
         {
@@ -55,6 +56,12 @@ extern "C" fn sigsys_handler(
         {
             let rax = libc::REG_RAX as usize;
             (*ucontext).uc_mcontext.gregs[rax] = i64::from(-libc::EPERM);
+        }
+        #[cfg(target_arch = "riscv64")]
+        {
+            let ucontext = ctx.cast::<uapi::ucontext_t>();
+            (*ucontext).uc_mcontext.__gregs[uapi::REG_A0 as usize] =
+                (-libc::EPERM) as libc::c_ulong;
         }
     }
 }
@@ -241,6 +248,13 @@ fn report_event(event: u32) {
 
 pub fn report_post_fs_data() {
     report_event(uapi::EVENT_POST_FS_DATA_RUST);
+}
+
+pub fn report_services() -> Result<bool> {
+    let mut cmd = uapi::ksu_report_event_cmd {
+        event: uapi::EVENT_SERVICES,
+    };
+    Ok(ksuctl(uapi::KSU_IOCTL_REPORT_EVENT, &raw mut cmd)? == 1)
 }
 
 pub fn report_boot_complete() {

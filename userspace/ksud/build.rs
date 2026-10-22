@@ -38,14 +38,20 @@ fn configure_bindgen() {
     // The bindgen::Builder is the main entry point
     // to bindgen, and lets you build up options for
     // the resulting bindings.
-    let bindings = bindgen::Builder::default()
+    let mut builder = bindgen::Builder::default()
         // The input header we would like to generate
         // bindings for.
         .header("src/android/uapi/ksu_uapi.h")
         .clang_args(["-x", "c++", "-I../../"])
         // Tell cargo to invalidate the built crate whenever any of the
         // included header files changed.
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()));
+    if env::var("CARGO_CFG_TARGET_ARCH").as_deref() == Ok("riscv64") {
+        // libc does not yet expose Android's RISC-V signal context. Generate
+        // it from the target NDK rather than assuming another libc's layout.
+        builder = builder.header_contents("ksu_signal_context.h", "#include <sys/ucontext.h>");
+    }
+    let bindings = builder
         // Finish the builder and generate the bindings.
         .generate()
         // Unwrap the Result and panic on failure.
@@ -236,6 +242,10 @@ fn build_mkbootfs(out_directory: &Path) {
         "x86_64-linux-android" => (
             format!("x86_64-linux-android{API_LEVEL}"),
             Path::new("bin/x86_64"),
+        ),
+        "riscv64-linux-android" => (
+            "riscv64-linux-android35".to_string(),
+            Path::new("bin/riscv"),
         ),
         _ => panic!("mkbootfs is not configured for Android target {target}"),
     };

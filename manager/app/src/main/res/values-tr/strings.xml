@@ -212,7 +212,7 @@
     <string name="horizon_flash_complete">Flash\'lama Tamamlandı</string>
     <string name="horizon_preparing">Hazırlanıyor…</string>
     <string name="horizon_copying_files">Dosyalar kopyalanıyor…</string>
-    <string name="horizon_flashing">Çekirdek flaşlanıyor...</string>
+    <string name="horizon_flashing">Çekirdek flaşlanıyor…</string>
     <string name="horizon_flash_complete_status">Flaşlama tamamlandı</string>
     <string name="select_slot_title">Flaşlama Yuvası Seç</string>
     <string name="select_slot_description">Lütfen boot flaşlama için hedef yuvayı seçin</string>
@@ -261,7 +261,6 @@
     <string name="warning_of_meta_module_title">Meta modül gerektirir</string>
     <string name="warning_of_meta_module_summary">Bu modül, meta modül tarafından yönetilen /system bölümünü bağlamak istiyor. Bu modül meta modül olmadan çalışmayabilir</string>
     <string name="sort_usage_freq">Kullanım sıklığına göre</string>
-    <string name="no_apps_in_category">Bu kategoride uygulama yok</string>
     <string name="persistent">Kalıcı</string>
     <string name="temporary">Geçici</string>
     <string name="susfs_config_title">SuSFS Yapılandırması</string>
@@ -522,7 +521,6 @@
     <string name="susfs_uid_scheme_unmounted">Bağlantısı Kesik</string>
     <string name="susfs_status_no_data">Veri Yok</string>
     <string name="susfs_tab_open_redirect">Yönlendirmeyi Aç</string>
-    <string name="about_anime_character_sticker"><![CDATA[Simgeler özel bir lisans anlaşması kapsamında kullanılmaktadır: 怡子曰曰 tarafından çizilmiş, telif hakkı 明风 OuO\'ya aittir ve vektörleştirilmiş simgeler bu proje tarafından sağlanmaktadır.]]></string>
     <string name="settings_custom_monospace_font">Yerleşik eş aralıklı yazı tipini kullan</string>
     <string name="settings_custom_monospace_font_summary">Günlükleri görüntülerken sistemin eş aralıklı yazı tipiyle ilgili sorunları önlemek için yerleşik JetBrains Mono yazı tipini kullanır</string>
     <string name="susfs_enable_config">SUSFS Yöneticisi</string>
@@ -542,4 +540,28 @@
     <string name="reverse_order">Ters sırala</string>
     <string name="enable_floating_bottom_bar">Yüzen alt çubuk</string>
     <string name="enable_floating_bottom_bar_summary">Apple tarzı yüzen alt çubuğu kullan.</string>
+    <string name="advanced_options">Gelişmiş Seçenekler</string>
+    <string name="allow_shell">Kabuğ\'a her zaman kök erişimi ver</string>
+    <string name="allow_shell_summary">Her zaman ADB Shell\'in root komutuna erişmesine izin vermek. Gerekli olmadığı sürece bunu etkinleştirmeyiniz.</string>
+    <string name="enable_adb">Zorla adb\'yi başlangıç sürecinde etkinleştirmek</string>
+    <string name="enable_adb_summary">USB hata ayıklamayı ve adb doğrulamasını kapat. Gerekli olmadığı sürece bunu etkinleştirmeyiniz.</string>
+    <string name="install_force_backup">Stok imajı yedeklemek</string>
+    <string name="install_force_backup_summary">Lütfen önyükleme imajının bir stok önyükleme imajı olduğundan emin olun</string>
+    <string name="ak3_select_zip">Lütfen bir AnyKernel3 zip dosyası seçiniz</string>
+    <string name="install_upload_lkm_file_summary">Yerleşik LKM yerine özel bir .ko dosyası kullanın</string>
+    <string name="skip_ksud">ksud\'u kurmayın</string>
+    <string name="skip_ksud_summary">ksud kurulumunu iptal edin. Gerekmedikçe kesinlikle etkinleştirmeyin.</string>
+    <string name="settings_soft_reboot_summary">Modülleri yüklerken, güncellerken veya etkinleştirip devre dışı bırakırken, tam bir yeniden başlatma yerine yumuşak yeniden başlatma işlemini kullanın.</string>
+    <string name="settings_soft_reboot">Yeniden başlatma yerine yumuşak yeniden başlatma</string>
+    <string name="module_shortcut_copy_scheme">URL şemasını kopyala</string>
+    <string name="module_shortcut_scheme_copied">URL şeması kopyalandı</string>
+    <string name="settings_enable_swipe_dismiss">Geri kaydırma hareketi</string>
+    <string name="settings_enable_swipe_dismiss_summary">Önceki sayfaya dönmek için kaydırın.</string>
+    <string name="settings_pager_gesture_mode">Sayfa hareketi modu</string>
+    <string name="settings_pager_gesture_native">Varsayılan</string>
+    <string name="settings_pager_gesture_ios_like">iOS benzeri</string>
+    <string name="internal_server_error">Sunucu hatası</string>
+    <string name="about_app_icon"><![CDATA[İkonların TÜM HAKLARI SAKLIDIR ve telif hakkı %1$s tarafındandır]]></string>
+    <string name="both_kernel_and_module_files">Girilen ziplerde hem anykernel3 hemde modüller bulunmaktadır</string>
+    <string name="more_than_one_kernel_file">Girilen dosyalarda 1\'den fazla anykernel3 dosyası bulundu</string>
 </resources>

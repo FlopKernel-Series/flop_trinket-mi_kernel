@@ -303,7 +303,6 @@
     <string name="warning_of_meta_module_title">Потрібен метамодуль</string>
     <string name="warning_of_meta_module_summary">Цей модуль хоче монтувати /system; цим займатиметься метамодуль. Без нього модуль може не працювати</string>
     <string name="sort_usage_freq">Частота використання</string>
-    <string name="no_apps_in_category">Немає додатків у цій категорії</string>
     <string name="persistent">Постійний</string>
     <string name="temporary">Тимчасовий</string>
     <string name="susfs_config_title">Налаштування SuSFS</string>
@@ -527,7 +526,6 @@
     <string name="susfs_enable_config_summary">Увімкнути вбудований менеджер SUSFS. Може конфліктувати зі сторонніми модулями.</string>
     <string name="susfs_enable_config">Менеджер SUSFS</string>
     <string name="settings_custom_monospace_font">Використовувати вбудований моноширинний шрифт</string>
-    <string name="about_anime_character_sticker"><![CDATA[Піктограми ліцензовані за спеціальною угодою: намальовані 怡子曰曰, авторські права належать 明风 OuO, а векторизовані піктограми надані цим проєктом.]]></string>
     <string name="require_kernel_version_gki">Потрібне оновлення ядра</string>
     <string name="require_manager_version">Потрібне оновлення менеджера</string>
     <string name="require_kernel_version">Потрібне оновлення ядра. Натисніть, щоб встановити.</string>
@@ -542,4 +540,29 @@
     <string name="sort_name">Ім\'я</string>
     <string name="enable_floating_bottom_bar">Плаваюча нижня панель</string>
     <string name="enable_floating_bottom_bar_summary">Використовувати плаваючу нижню панель у стилі Apple.</string>
+    <string name="settings_soft_reboot">М\'який перезапуск замість перезавантаження</string>
+    <string name="settings_soft_reboot_summary">Використовувати м\'який перезапуск замість повного перезавантаження під час встановлення, оновлення або перемикання модулів.</string>
+    <string name="advanced_options">Додаткові налаштування</string>
+    <string name="allow_shell">Завжди надавати root-права для оболонки</string>
+    <string name="allow_shell_summary">Завжди дозволяти команді adb shell викликати команду SU. Не вмикайте це, якщо це не є абсолютно необхідним.</string>
+    <string name="enable_adb">Примусово ввімкнути adb під час завантаження</string>
+    <string name="enable_adb_summary">Примусово увімкнути налагодження USB та вимкнути автентифікацію adb. Не вмикайте це, якщо це не є абсолютно необхідним.</string>
+    <string name="install_force_backup">Резервне копіювання стокового образа</string>
+    <string name="install_force_backup_summary">Будь ласка, переконайтеся, що вибраний вами завантажувальний образ є стоковим образом</string>
+    <string name="ak3_select_zip">Вибрати zip-файл AnyKernel3 для прошивки</string>
+    <string name="install_upload_lkm_file_summary">Використовувати файл custom.ko замість вбудованого LKM</string>
+    <string name="skip_ksud">Не встановлювати ksud</string>
+    <string name="skip_ksud_summary">Скасувати встановлення ksud. Не вмикайте цю функцію, якщо це не є абсолютно необхідним.</string>
+    <string name="settings_enable_swipe_dismiss">Жест повернення назад</string>
+    <string name="settings_enable_swipe_dismiss_summary">Проведіть пальцем від краю, щоб повернутися на попередню сторінку.</string>
+    <string name="settings_pager_gesture_mode">Режим жестів для перемикання сторінок</string>
+    <string name="settings_pager_gesture_native">За замовчуванням</string>
+    <string name="settings_pager_gesture_cross_axis">Поперечна вісь</string>
+    <string name="settings_pager_gesture_ios_like">як в iOS</string>
+    <string name="about_app_icon"><![CDATA[Усі права на значки захищено, а авторські права належать %1$s]]></string>
+    <string name="more_than_one_kernel_file">Знайдено більше 1 файлу anykernel3 у вхідних файлах</string>
+    <string name="both_kernel_and_module_files">Вхідні zip-архіви містять як anykernel3, так і модулі</string>
+    <string name="module_shortcut_copy_scheme">Скопіювати схему URL</string>
+    <string name="module_shortcut_scheme_copied">Схема URL скопійована</string>
+    <string name="internal_server_error">Внутрішня помилка сервера</string>
 </resources>
