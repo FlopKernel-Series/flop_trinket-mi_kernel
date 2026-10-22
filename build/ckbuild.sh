@@ -125,7 +125,7 @@ for arg in "$@"; do
         DO_KSU=1
     fi
     if [[ "$arg" == *s* ]]; then
-        log_info "ReSukiSU argument passed, a ReSukiSU build will be made"
+        log_info "BakaSU argument passed, a BakaSU build will be made"
         DO_SUKI=1
     fi
     if [[ "$arg" == *x* ]]; then
@@ -204,8 +204,8 @@ if [[ "$DO_KSU" == "1" ]]; then
     CK_TYPE="KSUNext-SUSFS"
     CK_TYPE_SHORT="KN"
 elif [ "$DO_SUKI" == "1" ]; then
-    CK_TYPE="ReSukiSU-SUSFS"
-    CK_TYPE_SHORT="RESKS"
+    CK_TYPE="BakaSU-SUSFS"
+    CK_TYPE_SHORT="BK"
 elif [ "$DO_XXKSU" == "1" ]; then
     CK_TYPE="XXKSU-SUSFS"
     CK_TYPE_SHORT="XXK"
