@@ -56,7 +56,7 @@ static void display_openssl_errors(int l)
 	}
 }
 
-#ifndef OPENSSL_IS_BORINGSSL
+#if !defined(OPENSSL_IS_BORINGSSL) && !defined(OPENSSL_NO_ENGINE)
 static void drain_openssl_errors(void)
 {
 	const char *file;
@@ -77,7 +77,9 @@ static void drain_openssl_errors(void)
 		}					\
 	} while(0)
 
+#ifndef OPENSSL_NO_ENGINE
 static const char *key_pass;
+#endif
 static BIO *wb;
 static char *cert_dst;
 int kbuild_verbose;
@@ -106,7 +108,9 @@ int main(int argc, char **argv)
 
 	kbuild_verbose = atoi(getenv("KBUILD_VERBOSE")?:"0");
 
-        key_pass = getenv("KBUILD_SIGN_PIN");
+#ifndef OPENSSL_NO_ENGINE
+	key_pass = getenv("KBUILD_SIGN_PIN");
+#endif
 
 	if (argc != 3)
 		format();
@@ -125,6 +129,7 @@ int main(int argc, char **argv)
 		ERR(1, "BoringSSL does not support extracting from PKCS#11");
 		exit(1);
 #else
+#ifndef OPENSSL_NO_ENGINE
 		ENGINE *e;
 		struct {
 			const char *cert_id;
@@ -147,6 +152,10 @@ int main(int argc, char **argv)
 		ENGINE_ctrl_cmd(e, "LOAD_CERT_CTRL", 0, &parms, NULL, 1);
 		ERR(!parms.cert, "Get X.509 from PKCS#11");
 		write_cert(parms.cert);
+#else
+		ERR(1, "PKCS#11 extraction is not supported by this OpenSSL (no ENGINE API)");
+		exit(1);
+#endif
 #endif
 	} else {
 		BIO *b;
