@@ -3119,7 +3119,7 @@ static void reset_batch_size(struct lruvec *lruvec, struct lru_gen_mm_walk *walk
 
 		if (lru_gen_is_active(lruvec, gen))
 			lru += LRU_ACTIVE;
-		update_lru_size(lruvec, lru, zone, delta);
+		__update_lru_size(lruvec, lru, zone, delta);
 	}
 }
 
@@ -3751,8 +3751,8 @@ restart:
 			if (!delta)
 				continue;
 
-			update_lru_size(lruvec, lru, zone, delta);
-			update_lru_size(lruvec, lru + LRU_ACTIVE, zone, -delta);
+			__update_lru_size(lruvec, lru, zone, delta);
+			__update_lru_size(lruvec, lru + LRU_ACTIVE, zone, -delta);
 		}
 	}
 

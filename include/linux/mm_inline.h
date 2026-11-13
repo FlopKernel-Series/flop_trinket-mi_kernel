@@ -186,7 +186,7 @@ static inline void lru_gen_update_size(struct lruvec *lruvec, struct page *page,
 	if (old_gen < 0) {
 		if (lru_gen_is_active(lruvec, new_gen))
 			lru += LRU_ACTIVE;
-		update_lru_size(lruvec, lru, zone, delta);
+		__update_lru_size(lruvec, lru, zone, delta);
 		return;
 	}
 
@@ -194,14 +194,14 @@ static inline void lru_gen_update_size(struct lruvec *lruvec, struct page *page,
 	if (new_gen < 0) {
 		if (lru_gen_is_active(lruvec, old_gen))
 			lru += LRU_ACTIVE;
-		update_lru_size(lruvec, lru, zone, -delta);
+		__update_lru_size(lruvec, lru, zone, -delta);
 		return;
 	}
 
 	/* promotion */
 	if (!lru_gen_is_active(lruvec, old_gen) && lru_gen_is_active(lruvec, new_gen)) {
-		update_lru_size(lruvec, lru, zone, -delta);
-		update_lru_size(lruvec, lru + LRU_ACTIVE, zone, delta);
+		__update_lru_size(lruvec, lru, zone, -delta);
+		__update_lru_size(lruvec, lru + LRU_ACTIVE, zone, delta);
 	}
 
 	/* demotion requires isolation, e.g., lru_deactivate_fn() */
