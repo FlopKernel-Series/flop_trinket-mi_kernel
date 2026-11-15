@@ -31,11 +31,11 @@
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0) && !defined(smp_store_release)
-#define smp_store_release(p, v) do { smp_mb(); WRITE_ONCE(*p, v); } while (0)
+#define smp_store_release(p, v)	do { smp_mb(); WRITE_ONCE(*p, v); } while (0)
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 5, 0)
-static noinline void ksu_do_nothing(void *unused) { };
+static void ksu_do_nothing(void *unused) { };
 __weak void kick_all_cpus_sync(void)
 {
 	smp_mb();
@@ -44,7 +44,7 @@ __weak void kick_all_cpus_sync(void)
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)
-#define memzero_explicit(ptr, count) memset_explicit(ptr, 0, count)
+#define memzero_explicit(ptr, count)	memset_explicit(ptr, 0, count)
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
@@ -61,6 +61,16 @@ static void *ksu_kvmalloc(size_t bytes, gfp_t flags)
 }
 #define kvmalloc ksu_kvmalloc
 
+static void *ksu_kvmalloc_array(size_t n, size_t size, gfp_t flags)
+{
+	size_t bytes;
+	if (check_mul_overflow(n, size, &bytes))
+		return nullptr;
+
+	return kvmalloc(bytes, flags);
+}
+#define kvmalloc_array ksu_kvmalloc_array
+
 static void ksu_kvfree(const void *buf)
 {
 	if (is_vmalloc_addr(buf))
@@ -72,41 +82,68 @@ static void ksu_kvfree(const void *buf)
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 18, 0)
-static void *ksu_kvcalloc(size_t n, size_t size, gfp_t flags)
-{
-	size_t bytes;
-	if (check_mul_overflow(n, size, &bytes))
-		return nullptr;
-
-	return kvmalloc(bytes, flags | __GFP_ZERO);
-}
-#define kvcalloc ksu_kvcalloc
+#define kvcalloc(n, size, flags)	({ kvmalloc_array(n, size, flags | __GFP_ZERO); })
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0) // probe_kernel_read
 __weak long copy_from_kernel_nofault(void *dst, const void *src, size_t size)
 {
 	// https://elixir.bootlin.com/linux/v5.2.21/source/mm/maccess.c#L27
-	long ret;
 	mm_segment_t old_fs = get_fs();
-
 	set_fs(KERNEL_DS);
 	pagefault_disable();
-	ret = __copy_from_user_inatomic(dst, (__force const void __user *)src, size);
+	long ret = __copy_from_user_inatomic(dst, (__force const void __user *)src, size);
 	pagefault_enable();
 	set_fs(old_fs);
-
 	return ret ? -EFAULT : 0;
 }
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0) // probe_kernel_write
+__weak long copy_to_kernel_nofault(void *dst, const void *src, size_t size)
+{
+	// https://elixir.bootlin.com/linux/v5.8/source/mm/maccess.c#L127
+	mm_segment_t old_fs = get_fs();
+	set_fs(KERNEL_DS);
+	pagefault_disable();
+	long ret = __copy_to_user_inatomic((__force void __user *)dst, src, size);
+	pagefault_enable();
+	set_fs(old_fs);
+	return ret ? -EFAULT : 0;
+}
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0) // strncpy_from_unsafe_user
+__weak long strncpy_from_user_nofault(char *dst, const void __user *unsafe_addr, long count)
+{
+	mm_segment_t old_fs = get_fs();
+	long ret;
+
+	if (unlikely(count <= 0))
+		return 0;
+
+	set_fs(USER_DS);
+	pagefault_disable();
+	ret = strncpy_from_user(dst, unsafe_addr, count);
+	pagefault_enable();
+	set_fs(old_fs);
+
+	if (ret >= count) {
+		ret = count;
+		dst[ret - 1] = '\0';
+	} else if (ret > 0) {
+		ret++;
+	}
+
+	return ret;
+}
+#endif
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0) // probe_user_read
-__weak long copy_from_user_nofault(void *dst, const void __user *src, size_t size)
+static __always_inline long ksu_copy_from_user_nofault(void *dst, const void __user *src, size_t size)
 {
 	// https://elixir.bootlin.com/linux/v5.8/source/mm/maccess.c#L205
-	long ret = -EFAULT;
 	mm_segment_t old_fs = get_fs();
-
 	set_fs(USER_DS);
 
 	/**
@@ -115,15 +152,12 @@ __weak long copy_from_user_nofault(void *dst, const void __user *src, size_t siz
 	 * we skip it.
 	 */
 	pagefault_disable();
-	ret = __copy_from_user_inatomic(dst, src, size);
+	long ret = __copy_from_user_inatomic(dst, src, size);
 	pagefault_enable();
-
 	set_fs(old_fs);
-
-	if (ret)
-		return -EFAULT;
-	return 0;
+	return ret ? -EFAULT : 0;
 }
+#define copy_from_user_nofault ksu_copy_from_user_nofault
 #endif
 
 /**
@@ -139,6 +173,7 @@ static __always_inline long copy_from_user_retry(void *to, const void __user *fr
 	// we faulted! fallback to slow path
 	return copy_from_user(to, from, count);
 }
+#define copy_from_user copy_from_user_retry
 
 /**
  * memmove_user(): memmove user memory through a temp buffer
@@ -150,7 +185,7 @@ static __always_inline long memmove_user(void __user *dst, const void __user *sr
 	if (!buf)
 		return -ENOMEM;
 
-	if (!!copy_from_user_retry(buf, src, count))
+	if (!!copy_from_user(buf, src, count))
 		return -EFAULT;
 
 	if (!!copy_to_user(dst, buf, count))
@@ -165,8 +200,16 @@ static __always_inline long memmove_user(void __user *dst, const void __user *sr
 #define ksu_is_seccomp_enabled() (!!current->seccomp.mode)
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 18, 0)
+#if defined(CONFIG_AUDIT)
+#define audit_context() (current->audit_context)
+#else
+#define audit_context() (nullptr)
+#endif
+#endif
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
-static noinline ssize_t ksu_kernel_read_compat(struct file *file, void *buf, size_t count, loff_t *pos)
+static ssize_t ksu_kernel_read_compat(struct file *file, void *buf, size_t count, loff_t *pos)
 {
 	mm_segment_t old_fs = get_fs();
 	set_fs(get_ds());
@@ -176,7 +219,7 @@ static noinline ssize_t ksu_kernel_read_compat(struct file *file, void *buf, siz
 }
 #define kernel_read ksu_kernel_read_compat
 
-static noinline ssize_t ksu_kernel_write_compat(struct file *file, const void *buf, size_t count, loff_t *pos)
+static ssize_t ksu_kernel_write_compat(struct file *file, const void *buf, size_t count, loff_t *pos)
 {
 	mm_segment_t old_fs = get_fs();
 	set_fs(get_ds());
@@ -186,15 +229,6 @@ static noinline ssize_t ksu_kernel_write_compat(struct file *file, const void *b
 }
 #define kernel_write ksu_kernel_write_compat
 #endif // < 4.14
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
-#define d_inode(dentry) ((dentry)->d_inode)
-#endif
-
-// for supercalls.c fd install tw
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 7, 0) && !defined(TWA_RESUME)
-#define TWA_RESUME 1
-#endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 4, 0)
 // https://elixir.bootlin.com/linux/v3.4/source/include/linux/kconfig.h
@@ -246,14 +280,6 @@ __weak int path_mount(const char *dev_name, struct path *path, const char *type_
 	set_fs(old_fs);
 	return ret;
 }
-#endif
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0) && !defined(replace_fops)
-#define replace_fops(f, fops) do {		\
-	struct file *__file = (f);		\
-	fops_put(__file->f_op);			\
-	BUG_ON(!(__file->f_op = (fops))); 	\
-} while(0)
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 4, 0) && defined(CONFIG_JUMP_LABEL)
@@ -345,29 +371,27 @@ __weak void ext4_unregister_sysfs(struct super_block *sb)
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 16, 0) && !defined(strscpy)
 /**
- * hand-rolled strscpy from builtins.
- *
+ * single-pass, per-byte strscpy implementation
  * not 1:1, no aligned/per-word optimization.
+ *
+ * restricted, "The behavior is undefined if the string buffers overlap."
  * discardable since 4.16: https://github.com/torvalds/linux/commit/08a77676f9c5
  */
-static ssize_t ksu_strscpy(char *dest, const char *src, size_t count)
+static ssize_t ksu_strscpy(char *restrict dest, const char *restrict src, size_t count)
 {
 	if (!count)
 		return -E2BIG;
 
-	// look for the first null terminator w/in count
-	// alternatively, strnlen?
-	const char *end = __builtin_memchr(src, '\0', count);
-	if (!end)
-		goto no_null_term;
+	for (size_t i = 0; i < count; i++) {
+		char a = src[i];
+		dest[i] = a;
 
-	size_t copy_len = end - src + 1; // +1 to copy \0
-	__builtin_memcpy(dest, src, copy_len);
-	return copy_len;
+		// returns strlen, null-1
+		if (!a)
+			return i;
+	}
 
-no_null_term:
-	__builtin_memcpy(dest, src, count - 1);
-	dest[count - 1] = '\0';
+	dest[count - 1] = 0;
 	return -E2BIG;
 }
 #define strscpy ksu_strscpy
@@ -398,7 +422,25 @@ static char *ksu_strchrnul(const char *s, int c)
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
-#define d_is_reg(dentry) S_ISREG((dentry)->d_inode->i_mode)
+#define d_is_reg(dentry)	S_ISREG((dentry)->d_inode->i_mode)
+#define d_inode(dentry)		((dentry)->d_inode)
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0) && !defined(replace_fops)
+#define replace_fops(f, fops)			\
+do {						\
+	struct file *__file = (f);		\
+	fops_put(__file->f_op);			\
+	BUG_ON(!(__file->f_op = (fops))); 	\
+} while(0)
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 9, 0)
+#define file_inode(file)	((file)->f_path.dentry->d_inode)
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 7, 0) && !defined(TWA_RESUME)
+#define TWA_RESUME 1
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 11, 0) && !defined(KSU_HAS_ITERATE_DIR)
@@ -429,10 +471,6 @@ __weak char *bin2hex(char *dst, const void *src, size_t count)
 }
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 9, 0)
-#define file_inode(file) ((file)->f_path.dentry->d_inode)
-#endif
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 1, 0) && !defined(CONFIG_LSM)
 #define selinux_inode(inode) ((inode)->i_security)
 #define selinux_cred(cred) ((cred)->security)
@@ -444,6 +482,14 @@ __weak void groups_sort(struct group_info *group_info) { } // no-op
 
 #ifndef U16_MAX
 #define	U16_MAX	((u16)(~0U))
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION (4, 16, 0)
+#define __poll_t unsigned __bitwise
+#endif // more portable than typedef
+
+#ifndef in_compat_syscall
+#define in_compat_syscall() is_compat_task()
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION (4, 12, 0) && !defined(EPOLLIN)

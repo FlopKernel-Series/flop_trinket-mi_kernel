@@ -33,23 +33,20 @@ static inline void ksu_umount_mnt(const char *mnt, struct path *path, int flags)
 #else /* we play 'guess if backported' */
 static __nocfi inline void ksu_umount_mnt(const char *mnt, struct path *path, int flags)
 {
-	extern int path_umount(struct path *path, int flags) __weak;
 	int err;
-#ifdef MODULE
-	assume(!path_umount);
+#ifndef MODULE
+	extern int path_umount(struct path *path, int flags) __weak;
+	if (path_umount) {
+		err = path_umount(path, flags);
+		goto out;
+	}
 #endif
-	if (!path_umount)
-		goto syscall;
-
-	err = path_umount(path, flags);
-	goto out;
-
-syscall:;
 	mm_segment_t old_fs = get_fs();
 	set_fs(KERNEL_DS);
 	err = (int)ksyscall(umount, (char __user *)mnt, flags);
 	set_fs(old_fs);
 	path_put(path);  // release caller's ref
+	goto out;
 out:
 	if (err)
 		pr_info("umount %s failed: %d\n", mnt, err);
@@ -107,12 +104,11 @@ static inline int ksu_handle_umount(struct cred *new, const struct cred *old)
 		pr_info("handle umount ignore non zygote child: %d\n", current->pid);
 		return 0;
 	}
-
-#ifdef CONFIG_KSU_HOSTSREDIRECT
-	set_thread_flag(TIF_KSU_UNMOUNTABLE);
-#endif
 	// umount the target mnt
 	pr_info("handle umount for uid: %d, pid: %d\n", new_uid, current->pid);
+
+	// hostsredirect and getpriority filter tracks this flag
+	set_thread_flag(TIF_KSU_UNMOUNTABLE);
 
 	const struct cred *saved = override_creds(ksu_cred);
 
