@@ -17,6 +17,7 @@
 #define ZYGOTE_CONTEXT "u:r:zygote:s0"
 #define ZYGOTE_NEXT_DOMAIN "u:r:zygote_next:s0"
 #define INIT_CONTEXT "u:r:init:s0"
+#define ADBD_CONTEXT "u:r:adbd:s0"
 
 void setup_selinux(const char *, struct cred *);
 
@@ -44,6 +45,8 @@ static inline bool is_zygote_next(const struct cred *cred)
 
 bool is_init(const struct cred *cred);
 
+bool is_adbd(const struct cred *cred);
+
 void apply_kernelsu_rules(void);
 
 int handle_sepolicy(void __user *user_data, u64 data_len);
@@ -65,6 +68,19 @@ void susfs_set_priv_app_sid(void);
 #endif // #ifdef CONFIG_KSU_SUSFS
 
 void escape_to_root_for_adb_root();
+
+struct inode;
+struct inode_security_struct;
+struct inode_security_struct *ksu_selinux_inode(const struct inode *inode);
+
+#if defined(MODULE) && defined(CONFIG_DEBUG_INFO_BTF)
+int __init ksu_selinux_inode_init(void);
+#else
+static inline int ksu_selinux_inode_init(void)
+{
+    return 0;
+}
+#endif
 
 extern u32 ksu_file_sid;
 
