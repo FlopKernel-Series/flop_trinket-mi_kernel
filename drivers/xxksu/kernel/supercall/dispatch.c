@@ -20,10 +20,8 @@ static int do_grant_root(void __user *arg)
 
 	pr_info("allow root for: %d\n", audit_uid);
 	ret = escape_with_root_profile();
-
-#ifdef CONFIG_KSU_FEATURE_SULOG
 	ksu_sulog_emit_grant_root(ret, audit_uid, audit_euid, GFP_KERNEL);
-#endif
+
 	return ret;
 }
 
@@ -33,6 +31,9 @@ static int do_get_info(void __user *arg)
 
 #ifdef MODULE
 	cmd.flags |= KSU_GET_INFO_FLAG_LKM;
+	if (ksu_late_loaded) {
+		cmd.flags |= KSU_GET_INFO_FLAG_LATE_LOAD;
+	}
 #endif
 
 	if (is_manager()) {
@@ -848,7 +849,7 @@ long ksu_supercall_handle_ioctl(const struct file *filp, unsigned int cmd, void 
 	int i;
 
 #ifdef CONFIG_KSU_DEBUG
-	pr_info("ksu ioctl: cmd=0x%x from uid=%d\n", cmd, current_uid().val);
+	pr_info_ratelimited("ksu ioctl: cmd=0x%x from uid=%d\n", cmd, current_uid().val);
 #endif
 
 	for (i = 0; ksu_ioctl_handlers[i].handler; i++) {
@@ -856,7 +857,7 @@ long ksu_supercall_handle_ioctl(const struct file *filp, unsigned int cmd, void 
 			// Check permission first
 			if (ksu_ioctl_handlers[i].perm_check && !ksu_ioctl_handlers[i].perm_check() &&
 				!(ksu_ioctl_handlers[i].allow_su_session && ksu_is_su_session_fd(filp))) {
-				pr_warn("ksu ioctl: permission denied for cmd=0x%x uid=%d\n", cmd, current_uid().val);
+				pr_warn_ratelimited("ksu ioctl: permission denied for cmd=0x%x uid=%d\n", cmd, current_uid().val);
 				return -EPERM;
 			}
 			// Execute handler
@@ -864,7 +865,7 @@ long ksu_supercall_handle_ioctl(const struct file *filp, unsigned int cmd, void 
 		}
 	}
 
-	pr_warn("ksu ioctl: unsupported command 0x%x\n", cmd);
+	pr_warn_ratelimited("ksu ioctl: unsupported command 0x%x\n", cmd);
 	return -ENOTTY;
 }
 

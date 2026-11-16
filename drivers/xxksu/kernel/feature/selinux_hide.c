@@ -61,18 +61,61 @@ static __always_inline int ksu_hide_setprocattr_inline(const char *name, void *v
 	if (!str || !str[0])
 		return 0;
 
-	// two cachelines
-	char buf[128];
-	size_t len = (size < 128) ? size : 127;
-
-	memcpy(buf, str, len);
-	buf[len] = '\0';
-
-	if (!ksu_should_destroy_context(buf))
+	if (!ksu_should_destroy_context(str, size))
 		return 0;
 	
-	pr_info("selinux_hide: setprocattr: destroy: %s\n", buf);
-	str[1] = '1';
+	pr_info("selinux_hide: setprocattr: destroy: %.*s\n", size, str);
+	str[1] = ';';
+
+	return 0;
+}
+
+static __always_inline int ksu_hide_setxattr_inline(const char *name, void *value, size_t size)
+{
+	if (unlikely(!ksu_selinux_hide_enabled))
+		return 0;
+
+	// only hook when seccomp is enabled
+	if (!ksu_is_seccomp_enabled())
+		return 0;
+
+	// only appuid
+	if (current_uid().val < 10000)
+		return 0;
+
+	if (!size)
+		return 0;
+
+	if (!name)
+		return 0;
+
+//	pr_info("%s: name: %s value: %s sz: %u \n", __func__, name, (char *)value, size);
+	constexpr char c[] = "security.selinux";
+	if (!!memcmp_inline(name, c, sizeof(c)))
+		return 0;
+
+	char *str = (char *)value;
+	if (!str || !str[0])
+		return 0;
+
+	if (!ksu_should_destroy_context(str, size))
+		return 0;
+
+ // this is wrong, this just fucks up ratelimit, rethink later, also better to catch in userspace
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0) && defined(CONFIG_AUDIT)
+	for (int i = 0; i < 16; i++) {
+		struct audit_buffer *ab = audit_log_start(audit_context(), GFP_ATOMIC, AUDIT_SELINUX_ERR);
+		if (!i) {
+			audit_log_format(ab, "op=setxattr invalid_context=");
+			audit_log_n_untrustedstring(ab, str, size);
+		} else
+			audit_log_format(ab, "");
+		audit_log_end(ab);
+	}
+#endif
+	// destroy
+	pr_info("selinux_hide: inode_setxattr: destroy: %.*s\n", size, str);
+	str[1] = ';';
 
 	return 0;
 }
@@ -100,11 +143,11 @@ static __nocfi ssize_t ksu_selinux_transaction_write(struct file *file, const ch
 	char kbuf[128];
 	size_t len = (size < 128) ? size : 127;
 
-	if (copy_from_user_retry(kbuf, buf, len))
+	if (!!copy_from_user(kbuf, buf, len))
 		goto skip_destroy;
 
 	kbuf[len] = '\0';
-	if (ksu_should_destroy_context(kbuf)) {
+	if (ksu_should_destroy_context(kbuf, len)) {
 		pr_info("selinux_hide: selinux_transaction_write: destroy: %s \n", kbuf);
 		buf = (const char __user *)current->mm->start_stack;
 	}
@@ -125,8 +168,8 @@ static __nocfi ssize_t ksu_selinux_transaction_write(struct file *file, const ch
 	if (sscanf(ar->data, "%x %x %x %x %u %x", &avd_allowed, &ff, &avd_auditallow, &avd_auditdeny, &avd_seqno, &avd_flags) != 6)
 		return ret;
 
-	avd_seqno = 1;
-	scnprintf(ar->data, SIMPLE_TRANSACTION_LIMIT, "%x %x %x %x %u %x", avd_allowed, ff, avd_auditallow, avd_auditdeny, avd_seqno, avd_flags);
+	avd_seqno = 1; // simple_transaction_set()
+	ar->size = scnprintf(ar->data, SIMPLE_TRANSACTION_LIMIT, "%x %x %x %x %u %x", avd_allowed, ff, avd_auditallow, avd_auditdeny, avd_seqno, avd_flags);
 
 	return ret;
 
@@ -163,7 +206,7 @@ static void ksu_init_hook_transaction_ops_write()
 	pr_info("selinux_hide: found transaction_ops->write at 0x%lx \n", (uintptr_t)fops->write);
 	selinux_transaction_write_fn = fops->write;
 
-	int ret = ksu_write_to_readonly_slot((uintptr_t)&fops->write, (uintptr_t)ksu_selinux_transaction_write);
+	int ret = patch_ro_slot((uintptr_t)&fops->write, (uintptr_t)ksu_selinux_transaction_write);
 	pr_info("selinux_hide: transaction_ops->write hijack ret: %d\n", ret);
 
 bail_out:
@@ -268,7 +311,7 @@ static void ksu_init_hook_sel_handle_status_ops_open()
 
 	sel_open_handle_status_fn = fops->open;
 
-	int ret = ksu_write_to_readonly_slot((uintptr_t)&fops->open, (uintptr_t)ksu_sel_open_handle_status);
+	int ret = patch_ro_slot((uintptr_t)&fops->open, (uintptr_t)ksu_sel_open_handle_status);
 	pr_info("selinux_hide: sel_handle_status_ops->open hijack ret: %d\n", ret);
 
 bail_out:

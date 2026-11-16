@@ -1,3 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2026 \xx
+ *
+ * This file is a downstream extension and NOT affiliated, endorsed by,
+ * or maintained by the official KernelSU developers.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ */
+// adapted from: https://github.com/tiann/KernelSU/pull/3907
 #define INIT_PATH "/system/bin/init"
 
 static bool ksu_preinit_enabled = true;
@@ -15,10 +28,13 @@ static bool is_selinux_setup(const char __user *const __user *argv_user)
 	if (is_compat_task()) {
 		uint32_t __user *compat_argv_user = (uint32_t __user *)argv_user;
 		uint32_t arg32_p;
-		get_user(arg32_p, compat_argv_user + 1);
+		if (get_user(arg32_p, compat_argv_user + 1))
+			return false;
 		arg = (void *)(uintptr_t)arg32_p;
-	} else
-		get_user(arg, argv_user + 1);
+	} else {
+		if (get_user(arg, argv_user + 1))
+			return false;
+	}
 
 	if (!arg)
 		return false;
@@ -30,7 +46,7 @@ static bool is_selinux_setup(const char __user *const __user *argv_user)
 	return !strcmp(buf, expected);
 }
 
-static void ksu_stage_preinit_binary(void *u_argv, void *u_envp)
+static void ksu_stage_preinit_binary(void ***u_argv, void ***u_envp)
 {
 	struct file *file;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 19, 0)
@@ -50,6 +66,8 @@ static void ksu_stage_preinit_binary(void *u_argv, void *u_envp)
 		fput(file);
 		return;
 	}
+
+	pr_info("preinit: runner staged (%zu bytes)\n", runner_binary_len);
 
 	int fd = get_unused_fd_flags(O_CLOEXEC);
 	if (fd < 0) {
@@ -76,167 +94,114 @@ static void ksu_stage_preinit_binary(void *u_argv, void *u_envp)
 	uintptr_t mmap_page = vm_mmap(NULL, 0, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0);
 	if (IS_ERR_VALUE(mmap_page)) {
 		pr_info("preinit: mmap fail!\n");
+		ksu_close_fd(fd);
 		return;
 	}
 
 	pr_info("preinit: mmap_page: 0x%lx \n", mmap_page);
 
-	const char __user **argv_user = (const char __user **)*(void ***)u_argv;
-	const char __user **envp_user = (const char __user **)*(void ***)u_envp;
+	if (!!copy_to_user((void *)mmap_page, fd_path, sizeof(fd_path)))
+		goto unmap_and_close;
 
-// payload definition
-	struct execve_payload {
-		char c_argv0[32];	// "/system/bin/init", mmap_page is pointing here
-		char c_argv1[32];	// "selinux_setup"
-		char filename[32];
-		uintptr_t argv[3];	// **argv: argv0, argv1, NULL terminator
-		uintptr_t envp[17];	// envp mirror, pointer extended.
+	void __user *argv = (void __user *)(const char __user **)*(void ***)u_argv;
+	void __user *envp = (void __user *)(const char __user **)*(void ***)u_envp;
+	void __user *filename = (void __user *)(const char __user *)mmap_page;
 
-	};
-	static_assert(32 > sizeof(INIT_PATH));
-// payload definition
+	if (likely(!is_compat_task())) 
+		goto ksyscall_exec;
 
-	struct execve_payload payload = { 0 };
-	memcpy(payload.c_argv0, INIT_PATH, sizeof(INIT_PATH));
-	memcpy(payload.c_argv1, "selinux_setup", sizeof("selinux_setup"));
-	memcpy(payload.filename, fd_path, len + 1);
-	payload.argv[0] = mmap_page;			// ptr to c_argv0
-	payload.argv[1] = mmap_page + 32;		// ptr to c_argv1
-	payload.argv[2] = 0x0;				// nullptr
+	pr_info("preinit: compat init detected! \n");
 
-	void __user *u_filename = (void __user *)(mmap_page + offsetof(struct execve_payload, filename));
-	void __user *u_argv_ptr = (void __user *)(mmap_page + offsetof(struct execve_payload, argv));
-	void __user *u_envp_ptr = nullptr;
+	// now extend the pointers
+	uintptr_t *m_argv = (uintptr_t *)(mmap_page + 1024);
+	uintptr_t *m_envp = (uintptr_t *)(mmap_page + 2048);
 
-	if (!is_compat_task())
-		goto native;
+	uint32_t buf4;
+	uint32_t __user *c_ptr = (uint32_t __user *)argv;
+	int i = 0;
 
-	pr_info("preinit: compat init found! argv: 0x%lx envp: 0x%lx \n", (uintptr_t)argv_user, (uintptr_t)envp_user);
-
-	// if compat task we need to mirror original envp with widened ptr
-	uint32_t __user *u_env32 = (uint32_t __user *)envp_user;
-	int c = 0;
-	while (c < 16) {
-		uint32_t compat = 0;
-		if (get_user(compat, &u_env32[c]))
+	while (!get_user(buf4, &c_ptr[i]) && !!buf4 && i < 127) {
+		uintptr_t buf8 = (uintptr_t)buf4;
+		if (!!put_user(buf8, &m_argv[i]))
 			break;
-
-		if (!compat)
-			break;
-
-		payload.envp[c] = (uintptr_t)compat; // extend
-		pr_info("preinit: debug: envp: 0x%lx \n", payload.envp[c]);
-		c++;
+		i++;
 	}
-	payload.envp[c] = 0x0;
-	u_envp_ptr = (void __user *)(mmap_page + offsetof(struct execve_payload, envp));
-	goto send_payload;
 
-native:; // we might as well do it for native, its a straight up copy paste anyway
-	uintptr_t __user *u_env_native = (uintptr_t __user *)envp_user;
-	int n = 0;
-	while (n < 16) {
-		uintptr_t native = 0;
-		if (get_user(native, &u_env_native[n]))
+	// reset
+	buf4 = 0;
+	i = 0;
+	c_ptr = (uint32_t __user *)envp;
+
+	while (!get_user(buf4, &c_ptr[i]) && !!buf4 && i < 127) {
+		uintptr_t buf8 = (uintptr_t)buf4;
+		if (!!put_user(buf8, &m_envp[i]))
 			break;
-
-		if (!native)
-			break;
-
-		payload.envp[n] = (uintptr_t)native;
-		pr_info("preinit: debug: envp: 0x%lx \n", payload.envp[n]);
-		n++;
+		i++;
 	}
-	payload.envp[n] = 0x0;
-	u_envp_ptr = (void __user *)(mmap_page + offsetof(struct execve_payload, envp));
 
-send_payload:
-	if (!!copy_to_user((void __user *)mmap_page, &payload, sizeof(struct execve_payload))) {
-		pr_info("preinit: debug: copy_to_user mmap failed \n");
+	argv = (char __user **)m_argv;
+	envp = (char __user **)m_envp;
+
+ksyscall_exec:;
+	ret = (int)ksyscall(execve, filename, argv, envp);
+	pr_info("preinit: ksyscall(execve, 0x%lx, 0x%lx, 0x%lx); ret: %d\n", (uintptr_t)filename, (uintptr_t)argv, (uintptr_t)envp, ret);
+	if (!ret)
 		return;
-	}
 
-	pr_info("preinit: syscall(SYS_execve, 0x%lx, 0x%lx, 0x%lx);\n", (uintptr_t)u_filename, (uintptr_t)u_argv_ptr, (uintptr_t)u_envp_ptr);
-
-	long eret = ksyscall(execve, u_filename, u_argv_ptr, u_envp_ptr);
-	pr_info("preinit: sys_execve runner returned: %ld \n", eret);
+unmap_and_close: // not rly needed, but its ok.
+	ksyscall(munmap, mmap_page, PAGE_SIZE);
+	ksu_close_fd(fd);
+	return;
 }
 
-static noinline void ksu_preinit_handle_kexecve(void **filename, void *kargv, void *kenvp)
+// filename_kernel is char **, filename_user is void * char __user *
+static noinline void do_ksu_preinit_execve(void **filename_kernel, const char __user **filename_user, void *u_argv, void *u_envp)
 {
 	if (!current->mm || current->pid != 1)
 		return;
 
-	assume_dereferenceable(*filename, 32);
-
-	constexpr char expected[] = INIT_PATH;
-	if (!!memcmp_inline(*(char **)filename, expected, sizeof(expected)))
-		return;
-
-	pr_info("preinit: kernel_execve: %s \n", INIT_PATH);
-
-	struct user_arg_ptr *argv = (struct user_arg_ptr *)kargv;
-	void ***u_argv = (void ***)&argv->ptr.native;
-#ifdef CONFIG_COMPAT
-	if (argv->is_compat)
-		u_argv = (void ***)&argv->ptr.compat;
-#endif
-
-	if (!is_selinux_setup((const char __user **)*(void ***)u_argv))
-		return;
-
-	struct user_arg_ptr *envp = (struct user_arg_ptr *)kenvp;
-	void ***u_envp = (void ***)&envp->ptr.native;
-#ifdef CONFIG_COMPAT
-	if (envp->is_compat)
-		u_envp = (void ***)&envp->ptr.compat;
-#endif
-
-	pr_info("preinit: kernel_execve: /system/bin/init with selinux_setup! \n");
-
-	kthread_run(ksu_disable_preinit_branch, nullptr, "kthread");
-
-	ksu_stage_preinit_binary(u_argv, u_envp);
-}
-
-// filename is void *char __user *
-static noinline void ksu_preinit_handle_uexecve(const char __user **filename, void *u_argv, void *u_envp)
-{
-	if (!current->mm || current->pid != 1)
+	if (!filename_kernel && !filename_user)
 		return;
 
 	constexpr char expected[] = INIT_PATH;
+	
+	if (filename_kernel) {
+		assume_dereferenceable(*filename_kernel, 32);
+		if (!!memcmp_inline(*(char **)filename_kernel, expected, sizeof(expected)))
+			return;
 
-	char buf[sizeof(expected) + 1];
-	buf[sizeof(buf) - 1] = 0;
-	if (!!copy_from_user_retry(buf, *filename, sizeof(buf) - 1 ))
-		return;
+		pr_info("preinit: kernel_execve: %s \n", INIT_PATH);	
+		if (!is_selinux_setup((const char __user **)*(void ***)u_argv))
+			return;
 
-	if (!!strcmp(buf, expected))
-		return;
+		pr_info("preinit: kernel_execve: /system/bin/init with selinux_setup! \n");
 
-	pr_info("preinit: sys_execve: %s \n", INIT_PATH);
+		kthread_run(ksu_disable_preinit_branch, nullptr, "kthread");
+	} else {
+		char buf[sizeof(expected) + 1];
+		buf[sizeof(buf) - 1] = 0;
+		if (!!copy_from_user(buf, *filename_user, sizeof(buf) - 1 ))
+			return;
 
-	if (!is_selinux_setup((const char __user **)*(void ***)u_argv))
-		return;
+		if (!!strcmp(buf, expected))
+			return;
 
-	pr_info("preinit: sys_execve: %s with selinux_setup! \n", INIT_PATH);
+		pr_info("preinit: sys_execve: %s \n", INIT_PATH);
+		if (!is_selinux_setup((const char __user **)*(void ***)u_argv))
+			return;
+
+		pr_info("preinit: sys_execve: %s with selinux_setup! \n", INIT_PATH);
+	}
 
 	kthread_run(ksu_disable_preinit_branch, nullptr, "kthread");
 
-	ksu_stage_preinit_binary(u_argv, u_envp);
+	ksu_stage_preinit_binary((void ***)u_argv, (void ***)u_envp);
 }
 
-static inline void ksu_preinit_kernel_execve_hook(void **filename, void *k_argv, void *k_envp)
+static inline void ksu_preinit_execve(void **filename_kernel, const char __user **filename_user, void *u_argv, void *u_envp)
 {
 	if (static_branch_unlikely(&ksu_preinit_key))
-		ksu_preinit_handle_kexecve(filename, k_argv, k_envp);
-}
-
-static inline void ksu_preinit_user_execve_hook(const char __user **filename, void *u_argv, void *u_envp)
-{
-	if (static_branch_unlikely(&ksu_preinit_key))
-		ksu_preinit_handle_uexecve(filename, u_argv, u_envp);
+		do_ksu_preinit_execve(filename_kernel, filename_user, u_argv, u_envp);
 }
 
 void ksu_preinit_release(void) { }
