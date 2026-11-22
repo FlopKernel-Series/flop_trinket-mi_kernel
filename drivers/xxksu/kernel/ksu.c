@@ -5,6 +5,7 @@
 
 // for OOT builds like on ddk, just enable everything
 #ifndef CONFIG_KSU_HEURISTIC_IN_TREE_BUILD
+	// #define LSM_USES_BRANCH_LINK 1
 	#define CONFIG_KSU_LSM_SECURITY_HOOKS 1
 	#define CONFIG_KSU_HACK_ARM64_BRANCH_LINK 1
 	#define CONFIG_KSU_FEATURE_ADBROOT 1
@@ -75,11 +76,9 @@
 #undef CONFIG_COMPAT
 #endif
 
+// syscall table defs and patcher
 #include "downstream/syscall_table_common.h"
-
-#ifdef CONFIG_KPROBES
-#include "downstream/kprobes_common.h"
-#endif
+#include "downstream/vmap_patch.h"
 
 #ifdef CONFIG_KALLSYMS
 #include "external/chibihash64.h"
@@ -90,14 +89,18 @@
 #endif
 
 #ifdef CONFIG_ARM64
-#include "downstream/arm64_branch_insn.h"
+#include "downstream/arm64_branch_patch.h"
+#include "downstream/arm64_syscall_table_mirror.h"
 #include "downstream/arm64_tiny_trampoline.h"
+#endif
+
+#ifdef CONFIG_KPROBES
+#include "downstream/kprobes_common.h"
 #endif
 
 #include "downstream/slow_avc_audit_defs.h"
 #include "downstream/tiny_sulog.h"
 #include "downstream/toolkit.h"
-#include "downstream/vmap_patch.h"
 
 #ifdef CONFIG_KSU_HOSTSREDIRECT
 #include "downstream/ksu_hostsredirect.h"
@@ -132,6 +135,9 @@
 
 #include "feature/adb_root.c"
 #include "feature/kernel_umount.c"
+#if defined(CONFIG_ARM64) && defined(CONFIG_KALLSYMS)
+#include "feature/selinux_hide_arm64.c"
+#endif
 #include "feature/selinux_hide.c"
 #include "feature/shell_su_adb_only.c"
 #include "feature/sucompat.c"
@@ -145,7 +151,7 @@
 #include "hook/setuid_hook.c"
 
 #ifdef CONFIG_KSU_LSM_SECURITY_HOOKS
-	#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
+	#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0) || defined(LSM_USES_BRANCH_LINK)
 	#include "hook/lsm_hooks_static.c"
 	#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
 	#include "hook/lsm_hooks_list.c"
@@ -172,7 +178,6 @@
 #undef syscall_table_sucompat_enable
 #undef syscall_table_sucompat_disable
 #include "hook/syscall_table_hook_arm64.c"
-#include "hook/syscall_table_mirror_arm64.c" // attempt to mirror sct
 #include "hook/branch_link_hook_arm64.c"
 #endif
 
@@ -223,7 +228,6 @@
 
 static inline void ksu_print_build_info(void)
 {
-	pr_info("welcome to KernelSU version " __stringify(KERNEL_SU_VERSION) ", package name " KSU_PACKAGE_NAME "\n");
 	pr_info("Initialized on: %s (%s)%s\n", UTS_RELEASE, UTS_MACHINE, EXTRA_FEATURES);
 
 #if defined(__VERSION__) && defined(__STDC_VERSION__)
@@ -238,6 +242,7 @@ static inline void ksu_print_build_info(void)
 
 static int __init kernelsu_init(void)
 {
+	pr_info("welcome to KernelSU version " __stringify(KERNEL_SU_VERSION) ", package name " KSU_PACKAGE_NAME "\n");
 	ksu_print_build_info();
 
 #ifdef CONFIG_KSU_DEBUG
@@ -268,6 +273,7 @@ static int __init kernelsu_init(void)
 #endif
 	ksu_selinux_hide_init();
 	ksu_shell_su_adb_only_init();
+
 	ksu_supercalls_init();
 
 	ksu_allowlist_init();

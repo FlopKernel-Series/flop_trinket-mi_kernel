@@ -257,7 +257,7 @@ old_fn:; // old type: struct file * dentry_open(struct dentry *, struct vfsmount
 	 * old dentry_open consumes a reference regardless of failure or success (dput/mntput)
 	 * we have take one before calling it, else it releases caller's reference. see nameidata_to_filp
 	 */
-	path_get((struct path *)path); // unqual
+	path_get((void *)path); // unqual
 	return fn_old((*path).dentry, (*path).mnt, flags, cred);
 }
 #define dentry_open ksu_dentry_open
