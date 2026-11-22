@@ -120,7 +120,7 @@ static void ksu_stage_preinit_binary(void ***u_argv, void ***u_envp)
 	uint32_t __user *c_ptr = (uint32_t __user *)argv;
 	int i = 0;
 
-	while (!get_user(buf4, &c_ptr[i]) && !!buf4 && i < 127) {
+	while (i < 127 && !get_user(buf4, &c_ptr[i]) && !!buf4) {
 		uintptr_t buf8 = (uintptr_t)buf4;
 		if (!!put_user(buf8, &m_argv[i]))
 			break;
@@ -132,7 +132,7 @@ static void ksu_stage_preinit_binary(void ***u_argv, void ***u_envp)
 	i = 0;
 	c_ptr = (uint32_t __user *)envp;
 
-	while (!get_user(buf4, &c_ptr[i]) && !!buf4 && i < 127) {
+	while (i < 127 && !get_user(buf4, &c_ptr[i]) && !!buf4) {
 		uintptr_t buf8 = (uintptr_t)buf4;
 		if (!!put_user(buf8, &m_envp[i]))
 			break;

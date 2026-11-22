@@ -99,7 +99,7 @@ static inline int ksu_handle_umount(struct cred *new, const struct cred *old)
 	// because some su apps may setuid to untrusted_app but they are in global mount namespace
 	// when we umount for such process, that is a disaster!
 	// also handle case 4 and 5
-	bool is_zygote_child = is_zygote(old);
+	bool is_zygote_child = is_zygote(current_cred());
 	if (!is_zygote_child) {
 		pr_info("handle umount ignore non zygote child: %d\n", current->pid);
 		return 0;

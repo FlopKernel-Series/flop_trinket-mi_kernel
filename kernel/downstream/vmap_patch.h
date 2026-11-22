@@ -26,10 +26,21 @@
  */
 static void patch_ptr_slot_kick_cpu(void **target_slot, void *new_ptr)
 {
-// __atomic_store_n((uintptr_t *)target_slot, (uintptr_t)new_ptr, __ATOMIC_RELAXED);
 	assume_dereferenceable((void *)target_slot, sizeof(uintptr_t));
 	*(volatile void **)target_slot = new_ptr;
 	kick_all_cpus_sync();
+}
+
+nodiscard static int patch_ptr_slot_kick_cpu_safe(void **target_slot, void *new_ptr)
+{
+	assume_dereferenceable((void *)target_slot, sizeof(uintptr_t));
+	int ret = copy_to_kernel_nofault((void *)target_slot, &new_ptr, sizeof(uintptr_t));
+	if (!ret && *(volatile uintptr_t *)target_slot == (uintptr_t)new_ptr) {
+		kick_all_cpus_sync();
+		return ret;
+	}
+
+	return -EFAULT;
 }
 
 nodiscard static int patch_ro_slot_vmap(uintptr_t slot_ptr, uintptr_t new_ptr)
@@ -59,12 +70,12 @@ nodiscard static int patch_ro_slot_vmap(uintptr_t slot_ptr, uintptr_t new_ptr)
 
 	void **target_slot = (void **)((uintptr_t)writable_addr + offset);
 
-	patch_ptr_slot_kick_cpu(target_slot, (void *)new_ptr);
+	int ret = patch_ptr_slot_kick_cpu_safe(target_slot, (void *)new_ptr);
 
 	vunmap(writable_addr);
 	smp_mb();
 
-	return 0;
+	return ret;
 }
 
 nodiscard static noinline int patch_ro_slot(uintptr_t slot_ptr, uintptr_t new_ptr)
@@ -72,11 +83,8 @@ nodiscard static noinline int patch_ro_slot(uintptr_t slot_ptr, uintptr_t new_pt
 	if (!slot_ptr || !new_ptr)
 		return -EINVAL;
 
-	assume_dereferenceable((void *)slot_ptr, sizeof(uintptr_t));
-	if (!copy_to_kernel_nofault((void *)slot_ptr, &new_ptr, sizeof(uintptr_t)) && *(volatile uintptr_t *)slot_ptr == new_ptr) {
-		kick_all_cpus_sync();
+	if (!patch_ptr_slot_kick_cpu_safe((void **)slot_ptr, (void *)new_ptr))
 		return 0;
-	}
 
 	return patch_ro_slot_vmap(slot_ptr, new_ptr);
 }

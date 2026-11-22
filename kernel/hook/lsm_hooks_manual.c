@@ -47,17 +47,20 @@ int ksu_file_permission(struct file *file, int mask)
 	return 0;
 }
 
-// NOTE: 3-args only. arg1 not used on some kernels.
+static bool lsm_procattr_hook __read_mostly = true;
 int ksu_hide_setprocattr(const char *name, void *value, size_t size)
 {
-	ksu_hide_setprocattr_inline(name, value, size);
+	if (lsm_procattr_hook)
+		ksu_hide_setprocattr_inline(name, value, size);
 	return 0;
 }
 
-// NOTE: 3-args only. other args unused.
-int ksu_hide_inode_setxattr(const char *name, void *value, size_t size)
+// NOTE: 4-args only. other args unused.
+static bool lsm_setxattr_hook __read_mostly = true;
+int ksu_hide_inode_setxattr(struct dentry *dentry, const char *name, void *value, size_t *size, int *flags)
 {
-	ksu_hide_setxattr_inline(name, value, size);
+	if (lsm_setxattr_hook)
+		ksu_hide_setxattr_inline(name, value, *size);
 	return 0;
 }
 
@@ -65,3 +68,19 @@ static void __init ksu_lsm_hook_init(void)
 {
 	pr_info("%s: Automated LSM hooking disabled. Make sure manual security hooks are implemented!\n", __func__);
 }
+
+static void ksu_decide_inode_setxattr(bool sh_hooked)
+{
+	if (!sh_hooked)
+		return;
+	lsm_setxattr_hook = false;
+	pr_info("LSM: security_inode_setxattr unhooked!\n");
+}
+static void ksu_decide_setprocattr(bool sh_hooked)
+{
+	if (!sh_hooked)
+		return;
+	lsm_procattr_hook = false;
+	pr_info("LSM: security_inode_procattr unhooked!\n");
+}
+
